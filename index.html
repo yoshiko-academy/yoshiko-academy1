@@ -1200,7 +1200,7 @@ function renderStudents(){
     (!q||(s.name||'').toLowerCase().includes(q)||(s.phone||'').includes(q))&&
     (!ft||s.type===ft)&&(!ftech||s.teacher===ftech)&&
     (!fs||(fs==='active'?s.status==='active':s.status!=='active'))
-  );
+  ).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const tbody=document.getElementById('student-tbody');if(!tbody)return;
   const fm=`${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}`;
   const day=TODAY.getDate();
@@ -2073,6 +2073,11 @@ function parseBulkText(text){
     // 이름 없으면 스킵
     const nameTrim=(name||'').trim();
     if(!nameTrim)continue;
+    // 수식 문자열이면 빈값 처리
+    function stripFormula(v){const s=String(v||'').trim();return s.startsWith('=')?'':s;}
+    lessonCountCol=stripFormula(lessonCountCol);
+    paydate=stripFormula(paydate);
+    amount=stripFormula(amount);
     // 헤더행 스킵
     if(nameTrim==='이름'||nameTrim==='name')continue;
     // 유형이 유효하지 않으면 스킵 (힌트행, 설명행 등)
@@ -2089,6 +2094,25 @@ function parseBulkText(text){
       const tot=sh*60+sm+parsedDur;
       lessonTimeEnd=String(Math.floor(tot/60)%24).padStart(2,'0')+':'+String(tot%60).padStart(2,'0');
     }
+    // ★ 결제 링크 자동 적용 (빈칸이면 월횟수+결제주기로 자동 선택)
+    const AUTO_LINKS={
+      m3:'https://smartstore.naver.com/yoshiko/products/6469664540',
+      w1:'https://smartstore.naver.com/yoshiko/products/5665122687',
+      w2:'https://smartstore.naver.com/yoshiko/products/6469381270',
+      w3:'https://smartstore.naver.com/yoshiko/products/6469393795',
+      w4:'https://smartstore.naver.com/yoshiko/products/6469408808',
+      w5:'https://smartstore.naver.com/yoshiko/products/6469421915',
+    };
+    const _m=parseInt(monthlyCount)||0,_c=parseInt(payCycle)||1;
+    function _autoLink(){
+      if(_c>=3)return AUTO_LINKS.m3;
+      if(_m<=4)return AUTO_LINKS.w1;
+      if(_m<=8)return AUTO_LINKS.w2;
+      if(_m<=12)return AUTO_LINKS.w3;
+      if(_m<=16)return AUTO_LINKS.w4;
+      return AUTO_LINKS.w5;
+    }
+    const finalLink=(payLink||'').trim()||_autoLink();
     rows.push({
       name:name.trim(),
       type:(type||'학원').trim()||'학원',
@@ -2097,12 +2121,12 @@ function parseBulkText(text){
       className:(cls||'').trim(),
       payDate:parseInt(paydate)||null,
       amount:parseInt(String(amount||'').replace(/[^\d]/g,''))||0,
-      payLink:(payLink||'').trim(),
+      payLink:finalLink,
       lessonTime:parsedTime,
       lessonDuration:parsedDur,
       lessonTimeEnd,
-      monthlyCount:parseInt(monthlyCount)||null,
-      payCycle:parseInt(payCycle)||1,
+      monthlyCount:_m||null,
+      payCycle:_c,
       payType:(payType||'선불').trim()||'선불',
       lessonCount:parseInt(lessonCountCol)||null,
     });
@@ -2121,7 +2145,7 @@ window.loadBulkFile=async function(e){
   // xlsx: SheetJS — 시간 셀을 직접 변환
   const arrayBuf=await file.arrayBuffer();
   function doLoad(){
-    const wb=XLSX.read(arrayBuf,{type:'array',cellDates:false});
+    const wb=XLSX.read(arrayBuf,{type:'array',cellDates:false,cellFormula:false});
     const ws=wb.Sheets[wb.SheetNames[0]];
     // 셀별로 직접 순회해서 시간값 처리
     const range=XLSX.utils.decode_range(ws['!ref']||'A1');
