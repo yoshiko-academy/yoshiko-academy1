@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요시꼬 어학원</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f5f5f0;color:#1a1a1a;font-size:14px}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e8;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:6px}
+.logo{font-size:16px;font-weight:700;color:#0F6E56}.logo span{color:#1a1a1a}
+.nav{display:flex;gap:2px;flex-wrap:wrap}
+.nav-btn{padding:6px 13px;border:none;background:transparent;border-radius:8px;font-size:13px;cursor:pointer;color:#666;transition:all .15s;font-family:inherit}
+.nav-btn:hover{background:#f0f0f0;color:#1a1a1a}
+.nav-btn.active{background:#0F6E56;color:#fff;font-weight:600}
+.sync{font-size:11px;color:#999;display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#ccc;transition:background .3s}
+.sync-dot.ok{background:#3bb06e}
+.content{padding:20px;max-width:1400px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:14px 16px}
+.stat-label{font-size:12px;color:#888;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700;color:#1a1a1a}
+.stat-value.green{color:#0F6E56}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar input,.toolbar select{flex:1;min-width:120px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;background:#fff}
+.btn{padding:7px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:13px;color:#1a1a1a;transition:all .15s;font-family:inherit;white-space:nowrap}
+.btn:hover{background:#f5f5f5}
+.btn.primary{background:#0F6E56;border-color:#0F6E56;color:#fff}
+.btn.primary:hover{background:#085041}
+.btn.danger{color:#c0392b;border-color:#eee}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.gray{background:#f5f5f5;border-color:#e0e0e0}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+th{text-align:left;padding:9px 10px;color:#888;border-bottom:1px solid #eee;font-weight:600;font-size:12px}
+td{padding:9px 10px;border-bottom:1px solid #f0f0f0;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.학원{background:#d4f0e5;color:#085041}
+.badge.active{background:#d4f0e5;color:#085041}
+.badge.inactive{background:#ececec;color:#666}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.15)}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-row.full{grid-template-columns:1fr}
+label{font-size:12px;color:#666;display:block;margin-bottom:4px;font-weight:600}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:#1a1a1a}
+input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px rgba(15,110,86,.1)}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid #f0f0f0}
+.avatar{width:38px;height:38px;border-radius:50%;background:#d4f0e5;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0F6E56;flex-shrink:0}
+.divider{border:none;border-top:1px solid #f0f0f0;margin:12px 0}
+.cal-wrap{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.cal-title{font-size:18px;font-weight:700}
+.cal-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;background:#e8e8e8;gap:1px}
+.cal-dow{background:#f9f9f9;text-align:center;padding:8px 4px;font-size:12px;font-weight:700;color:#888}
+.cal-dow.sun{color:#c0392b}.cal-dow.sat{color:#2980b9}
+.cal-cell{background:#fff;min-height:88px;padding:7px;cursor:pointer;transition:background .1s}
+.cal-cell:hover{background:#f9fffe}
+.cal-cell.today{background:#f0fdf8}
+.cal-cell.other-month .cal-dn{color:#ccc}
+.cal-cell.selected{outline:2px solid #0F6E56;outline-offset:-2px}
+.cal-dn{font-size:12px;font-weight:600;margin-bottom:3px;color:#1a1a1a}
+.cal-dn.sun{color:#c0392b}.cal-dn.sat{color:#2980b9}
+.today-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#0F6E56;color:#fff;border-radius:50%;font-size:11px;font-weight:700}
+.cal-evt{font-size:10px;padding:2px 5px;border-radius:4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1.4}
+.cal-evt.학원{background:#c8ead8;color:#085041}
+.cal-more{font-size:10px;color:#999;padding:1px 4px}
+.side-panel{display:flex;flex-direction:column;gap:12px}
+.side-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 16px}
+.side-title{font-size:12px;font-weight:700;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+.evt-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.evt-item:last-child{border-bottom:none}
+.evt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;background:#27ae60}
+.empty-state{text-align:center;padding:20px 0;color:#bbb;font-size:13px}
+.pay-item{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0;gap:8px}
+.pay-item:last-child{border-bottom:none}
+.msg-box{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:12px;font-size:12px;color:#444;line-height:1.8;white-space:pre-wrap;margin-top:8px;cursor:pointer}
+.msg-box:hover{background:#f0f0f0}
+.msg-hint{font-size:11px;color:#bbb;margin-top:4px;text-align:right}
+.copy-btn{padding:5px 10px;border-radius:7px;border:1px solid #ddd;background:#f9f9f9;cursor:pointer;font-size:11px;font-family:inherit;color:#555;white-space:nowrap}
+.copy-btn:hover{background:#efefef}
+.student-chip{display:inline-flex;align-items:center;gap:4px;background:#f0fdf8;border:1px solid #b2dfdb;border-radius:20px;padding:3px 10px;font-size:12px;color:#085041;margin:2px}
+.wd-label{display:inline-flex;align-items:center;gap:4px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;transition:all .15s}
+.wd-label.on{background:#d4f0e5;border-color:#81c995;color:#085041}
+.wd-cb{width:auto;padding:0;border:none;background:none;display:none}
+.del-opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #e8e8e8;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.del-opt:hover{border-color:#0F6E56;background:#f0fdf8}
+.del-opt-title{font-size:13px;font-weight:700}
+.del-opt-desc{font-size:12px;color:#888;margin-top:2px}
+.day-chip{cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid #ddd;border-radius:20px;font-size:13px;user-select:none;transition:all .15s}
+.day-chip:has(input:checked){background:#0F6E56;color:#fff;border-color:#0F6E56}
+.day-chip input{display:none}
+.cls-c0{background:#c8ead8!important;color:#085041!important}
+.cls-c1{background:#c8dff8!important;color:#1a5fa8!important}
+.cls-c2{background:#fce8b2!important;color:#8a6000!important}
+.cls-c3{background:#ede9fe!important;color:#6b21a8!important}
+.cls-c4{background:#fdd9d9!important;color:#991b1b!important}
+.cls-c5{background:#d1fae5!important;color:#065f46!important}
+.cls-c6{background:#fef3c7!important;color:#92400e!important}
+.cls-c7{background:#dbeafe!important;color:#1e40af!important}
+.cls-c8{background:#fce7f3!important;color:#9d174d!important}
+.cls-c9{background:#d1f5f7!important;color:#0e7490!important}
+.cls-c10{background:#e0f2fe!important;color:#075985!important}
+.cls-c11{background:#f0fdf4!important;color:#166534!important}
+@media(max-width:700px){.cal-wrap{grid-template-columns:1fr}.stat-grid{grid-template-columns:repeat(2,1fr)}}
+.class-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.class-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.class-name{font-size:14px;font-weight:700}
+.class-meta{font-size:12px;color:#888;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">요시꼬<span> 어학원</span></div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('calendar',this)">📅 캘린더</button>
+    <button class="nav-btn" onclick="showPage('students',this)">👩‍🎓 학생 관리</button>
+    <button class="nav-btn" onclick="showPage('payment',this)">💳 결제 알림</button>
+    <button class="nav-btn" onclick="showPage('payhistory',this)">📋 결제 이력</button>
+    <button class="nav-btn" onclick="showPage('attendance',this)">✅ 출결 관리</button>
+    <button class="nav-btn" onclick="showPage('classes',this)">🏫 반 관리</button>
+  </div>
+  <div class="sync"><div class="sync-dot" id="sync-dot"></div><span id="sync-txt">연결 중...</span></div>
+</div>
+
+<div class="content">
+
+<!-- 캘린더 -->
+<div id="page-calendar" class="page active">
+  <div class="cal-wrap">
+    <div>
+      <div class="cal-header">
+        <div class="cal-title" id="cal-title"></div>
+        <div class="cal-nav">
+          <button class="btn sm gray" onclick="calMove(-1)">←</button>
+          <button class="btn sm gray" onclick="goToday()">오늘</button>
+          <button class="btn sm gray" onclick="calMove(1)">→</button>
+          <button class="btn sm primary" onclick="openAddSchedule()">+ 수업 추가</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#888;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:#c8ead8;display:inline-block"></span>학원 수업</span>
+        <span id="class-legend-items"></span>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="side-card"><div class="side-title">오늘의 수업</div><div id="today-list"></div></div>
+      <div class="side-card" id="sel-day-card" style="display:none">
+        <div class="side-title" id="sel-day-title"></div>
+        <div id="sel-day-list"></div>
+        <button class="btn sm primary" style="margin-top:10px;width:100%" id="sel-add-btn">+ 이날 수업 추가</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 학생 관리 -->
+<div id="page-students" class="page">
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-label">전체 학원 수강생</div><div class="stat-value" id="s-total">-</div></div>
+    <div class="stat"><div class="stat-label">수강중</div><div class="stat-value green" id="s-active">-</div></div>
+    <div class="stat"><div class="stat-label">이번 달 결제완료</div><div class="stat-value green" id="s-paid">-</div></div>
+    <div class="stat"><div class="stat-label">미결제</div><div class="stat-value" style="color:#c0392b" id="s-unpaid">-</div></div>
+  </div>
+  <div class="toolbar">
+    <input type="text" id="search-input" placeholder="이름 또는 전화번호 검색..." oninput="renderStudents()">
+    <select id="filter-status" onchange="renderStudents()"><option value="">전체 상태</option><option value="active">수강중</option><option value="inactive">휴강/중단</option></select>
+    <select id="filter-class" onchange="renderStudents()"><option value="">전체 반</option></select>
+    <button class="btn primary" onclick="openAddStudent()">+ 학생 추가</button>
+    <button class="btn" onclick="exportCSV()">엑셀 다운로드</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table><thead><tr>
+      <th style="width:80px">이름</th><th style="width:120px">전화번호</th>
+      <th>수강 내용</th><th style="width:70px">반</th>
+      <th style="width:85px">결제일</th><th style="width:90px">수강료</th>
+      <th style="width:100px">결제 링크</th><th style="width:60px">상태</th><th style="width:60px">수정</th>
+    </tr></thead><tbody id="student-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- 결제 알림 -->
+<div id="page-payment" class="page">
+  <div class="card" style="background:#e8f4fd;border-color:#90caf9;margin-bottom:16px"><div style="font-size:13px;color:#1565c0">ℹ 결제가 완료되지 않은 학원 학생은 <b>✅ 결제완료 버튼을 누를 때까지</b> 계속 표시돼요.</div></div>
+  <div class="toolbar">
+    <select id="pay-filter-class" onchange="renderPayment()" style="min-width:120px"><option value="">전체 반</option></select>
+    <input type="text" id="pay-search" placeholder="이름 검색..." oninput="renderPayment()" style="min-width:140px">
+  </div>
+  <div id="payment-list"></div>
+</div>
+
+<!-- 결제 이력 -->
+<div id="page-payhistory" class="page">
+  <div class="toolbar">
+    <input type="month" id="ph-month" onchange="renderPayHistory()">
+    <input type="text" id="ph-search" placeholder="이름 검색..." oninput="renderPayHistory()" style="width:160px">
+    <select id="ph-class" onchange="renderPayHistory()"><option value="">전체 반</option></select>
+  </div>
+  <div id="payhistory-list"></div>
+</div>
+
+<!-- 출결 관리 -->
+<div id="page-attendance" class="page">
+  <div class="toolbar">
+    <select id="att-class" onchange="renderAttendance()"><option value="">전체 반</option></select>
+    <input type="month" id="att-month" onchange="renderAttendance()">
+  </div>
+  <div class="card" style="background:#e8f4fd;border-color:#90caf9;margin-bottom:4px"><div style="font-size:12px;color:#1565c0">ℹ 학원 수업 학생만 표시돼요. 날짜를 클릭하면 출석 체크돼요.</div></div>
+  <div id="attendance-list"></div>
+</div>
+
+<!-- 반 관리 -->
+<div id="page-classes" class="page">
+  <div class="toolbar"><button class="btn primary" onclick="openAddClass()">+ 반 추가</button></div>
+  <div class="card" style="background:#fff9e6;border-color:#ffd966;margin-bottom:4px"><div style="font-size:12px;color:#7a5800">💡 반에 요일·시간을 설정하면 스케줄이 자동 생성돼요.</div></div>
+  <div id="class-list"></div>
+</div>
+
+</div>
+
+<!-- 학생 모달 -->
+<div class="modal-bg" id="modal-student"><div class="modal">
+  <h3 id="modal-student-title">학생 추가</h3>
+  <div class="form-row">
+    <div><label>이름</label><input type="text" id="f-name" placeholder="홍길동"></div>
+    <div><label>전화번호</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
+  </div>
+  <div class="form-row full"><div><label>반 선택</label>
+    <select id="f-class" onchange="onClassChange()"><option value="">반 없음</option></select>
+  </div></div>
+  <div class="form-row full"><div><label>수강 내용</label><input type="text" id="f-course" placeholder="예: 초급 일본어 회화..."></div></div>
+  <div class="form-row">
+    <div><label>결제일 (매월 며칠)</label><input type="number" id="f-paydate" min="1" max="31" placeholder="15"></div>
+    <div><label>결제 금액 (원)</label><input type="number" id="f-amount" placeholder="160000"></div>
+  </div>
+  <div class="form-row full"><div><label>결제 링크 (선택)</label><input type="text" id="f-paylink" placeholder="https://..."></div></div>
+  <div class="form-row">
+    <div><label>수업 시작일</label><input type="date" id="f-start"></div>
+    <div><label>상태</label><select id="f-status"><option value="active">수강중</option><option value="inactive">중단</option></select></div>
+  </div>
+  <div class="form-row full"><div><label>메모</label><textarea id="f-memo" rows="2" placeholder="특이사항, 레벨 등"></textarea></div></div>
+  <div class="form-actions">
+    <button class="btn" onclick="closeModal('modal-student')">취소</button>
+    <button class="btn primary" onclick="saveStudent()">저장</button>
+  </div>
+</div></div>
+
+<!-- 수업 추가 모달 -->
+<div class="modal-bg" id="modal-schedule"><div class="modal">
+  <h3 id="sf-title">수업 일정 추가</h3>
+  <div class="form-row">
+    <div><label>날짜</label><input type="date" id="sf-date"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div><label>시작 시간</label><input type="time" id="sf-time" value="10:00" onchange="calcSfEndTime()"></div>
+      <div><label>수업 시간</label>
+        <select id="sf-duration" onchange="calcSfEndTime()">
+          <option value="60">1시간</option><option value="90">1시간 30분</option>
+          <option value="120">2시간</option><option value="30">30분</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="form-row full"><div><label>반 선택</label>
+    <select id="sf-class" onchange="onScheduleClassChange()"><option value="">반 없음 (직접 입력)</option></select>
+  </div></div>
+  <div class="form-row full"><div><label>수업 내용</label><input type="text" id="sf-note" placeholder="예: 히라가나 복습..."></div></div>
+  <div class="form-actions">
+    <button class="btn" onclick="closeModal('modal-schedule')">취소</button>
+    <button class="btn primary" onclick="saveSchedule()">저장</button>
+  </div>
+</div></div>
+
+<!-- 반 모달 -->
+<div class="modal-bg" id="modal-class"><div class="modal">
+  <h3 id="modal-class-title">반 추가</h3>
+  <div class="form-row full"><div><label>반 이름</label><input type="text" id="cl-name" placeholder="예: A반, 월수금반..."></div></div>
+  <div class="form-row">
+    <div><label>담당 선생님</label><input type="text" id="cl-teacher" placeholder="선생님 이름"></div>
+    <div><label>메모</label><input type="text" id="cl-memo" placeholder="예: 초급반..."></div>
+  </div>
+  <div class="form-row full"><div><label>결제 링크</label><input type="text" id="cl-paylink" placeholder="https://..."></div></div>
+  <hr style="border:none;border-top:1px solid #f0f0f0;margin:10px 0">
+  <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#555">정기 수업 요일 · 시간</div>
+  <div style="margin-bottom:10px">
+    <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;display:block">수업 요일</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <label id="cl-wd-label-0" class="wd-label"><input type="checkbox" id="cl-wd-0" class="wd-cb" onchange="toggleClWd(0)"> 일</label>
+      <label id="cl-wd-label-1" class="wd-label"><input type="checkbox" id="cl-wd-1" class="wd-cb" onchange="toggleClWd(1)"> 월</label>
+      <label id="cl-wd-label-2" class="wd-label"><input type="checkbox" id="cl-wd-2" class="wd-cb" onchange="toggleClWd(2)"> 화</label>
+      <label id="cl-wd-label-3" class="wd-label"><input type="checkbox" id="cl-wd-3" class="wd-cb" onchange="toggleClWd(3)"> 수</label>
+      <label id="cl-wd-label-4" class="wd-label"><input type="checkbox" id="cl-wd-4" class="wd-cb" onchange="toggleClWd(4)"> 목</label>
+      <label id="cl-wd-label-5" class="wd-label"><input type="checkbox" id="cl-wd-5" class="wd-cb" onchange="toggleClWd(5)"> 금</label>
+      <label id="cl-wd-label-6" class="wd-label"><input type="checkbox" id="cl-wd-6" class="wd-cb" onchange="toggleClWd(6)"> 토</label>
+    </div>
+  </div>
+  <div class="form-row">
+    <div><label>시작 시간</label><input type="time" id="cl-time" value="10:00" onchange="calcClEndTime()"></div>
+    <div><label>수업 시간</label>
+      <select id="cl-duration" onchange="calcClEndTime()">
+        <option value="60">1시간</option><option value="90">1시간 30분</option>
+        <option value="120">2시간</option><option value="30">30분</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div><label>스케줄 시작일</label><input type="date" id="cl-start-date"></div>
+    <div><label>스케줄 종료일 (빈칸=3개월)</label><input type="date" id="cl-end-date"></div>
+  </div>
+  <div class="form-actions">
+    <button class="btn" onclick="closeModal('modal-class')">취소</button>
+    <button class="btn primary" onclick="saveClass()">저장</button>
+  </div>
+</div></div>
+
+<!-- 반복삭제 모달 -->
+<div class="modal-bg" id="modal-del-repeat"><div class="modal" style="width:420px">
+  <h3>반복 수업 삭제</h3>
+  <div class="del-opt" onclick="confirmDelRepeat('one')"><div style="font-size:20px">📌</div><div><div class="del-opt-title">이 수업만 삭제</div><div class="del-opt-desc">선택한 날짜의 수업만 삭제</div></div></div>
+  <div class="del-opt" onclick="confirmDelRepeat('future')"><div style="font-size:20px">➡️</div><div><div class="del-opt-title">이 수업 이후 모두 삭제</div><div class="del-opt-desc">이후의 반복 수업을 모두 삭제</div></div></div>
+  <div class="del-opt" onclick="confirmDelRepeat('all')" style="border-color:#f09595"><div style="font-size:20px">🗑️</div><div><div class="del-opt-title" style="color:#c0392b">전체 반복 수업 삭제</div></div></div>
+  <div class="form-actions" style="border-top:none;padding-top:0;margin-top:8px"><button class="btn" onclick="closeModal('modal-del-repeat')">취소</button></div>
+</div></div>
+
+<div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;display:none;z-index:9999;pointer-events:none"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ★ 같은 Firebase 프로젝트 연동
+const firebaseConfig = {
+  apiKey: "AIzaSyDkd9iEVaD6WP9vQ-_bvddanZOcCMVCUFs",
+  authDomain: "yoshiko-academy.firebaseapp.com",
+  projectId: "yoshiko-academy",
+  storageBucket: "yoshiko-academy.firebasestorage.app",
+  messagingSenderId: "997515943024",
+  appId: "1:997515943024:web:728471f1a4f184877128b5"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ★ 학원 학생만 필터
+let allStudents=[], schedules=[], attendance={}, classes=[];
+let students=[];  // 학원 타입만
+let editingStudentId=null, editingClassId=null, editingScheduleId=null;
+let pendingDelId=null;
+let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), selectedDate=null;
+const TODAY=new Date();
+const TODAYSTR=TODAY.toISOString().slice(0,10);
+const YYYYMM=TODAYSTR.slice(0,7);
+const DOWNAMES=['일','월','화','수','목','금','토'];
+
+function setSynced(ok){
+  document.getElementById('sync-dot').className='sync-dot'+(ok?' ok':'');
+  document.getElementById('sync-txt').textContent=ok?'저장됨':'연결 중...';
+}
+
+onSnapshot(collection(db,'students'),snap=>{
+  allStudents=snap.docs.map(d=>({...d.data(),id:d.id}));
+  // ★ 학원 타입만
+  students=allStudents.filter(s=>s.type==='학원');
+  refreshAll();setSynced(true);
+});
+onSnapshot(collection(db,'schedules'),snap=>{
+  // ★ 학원 타입 수업만
+  schedules=snap.docs.map(d=>({...d.data(),id:d.id})).filter(s=>!s.type||s.type==='학원');
+  refreshAll();setSynced(true);
+});
+onSnapshot(collection(db,'attendance'),snap=>{attendance={};snap.docs.forEach(d=>{attendance[d.id]=d.data();});refreshAll();setSynced(true);});
+onSnapshot(collection(db,'classes'),snap=>{
+  // ★ 학원 반만
+  classes=snap.docs.map(d=>({...d.data(),id:d.id})).filter(c=>!c.type||c.type==='학원');
+  populateClassSelects();refreshAll();setSynced(true);
+});
+
+function refreshAll(){
+  const active=document.querySelector('.page.active');if(!active)return;
+  const id=active.id.replace('page-','');
+  if(id==='calendar')renderCalendar();
+  if(id==='students')renderStudents();
+  if(id==='payment')renderPayment();
+  if(id==='payhistory')renderPayHistory();
+  if(id==='attendance')renderAttendance();
+  if(id==='classes')renderClasses();
+}
+
+async function saveDoc(col,id,data){await setDoc(doc(db,col,id),data);}
+async function delDoc(col,id){await deleteDoc(doc(db,col,id));}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2500);}
+function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('open');}
+window.closeModal=closeModal;
+
+window.showPage=function(p,btn){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  if(btn)btn.classList.add('active');
+  refreshAll();
+};
+
+function populateClassSelects(){
+  const opts='<option value="">반 없음</option>'+classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const filterOpts='<option value="">전체 반</option>'+classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  ['sf-class','f-class'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  ['filter-class','pay-filter-class','ph-class','att-class'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=filterOpts;});
+}
+
+// ── 캘린더 ──
+window.calMove=function(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();};
+window.goToday=function(){calYear=TODAY.getFullYear();calMonth=TODAY.getMonth();selectedDate=null;renderCalendar();};
+
+function renderCalendar(){
+  const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const DOWS=['일','월','화','수','목','금','토'];
+  document.getElementById('cal-title').textContent=`${calYear}년 ${MONTHS[calMonth]}`;
+
+  // 반 색상
+  const CLASS_BG=['#c8ead8','#c8dff8','#fce8b2','#ede9fe','#fdd9d9','#d1fae5','#fef3c7','#dbeafe','#fce7f3','#d1f5f7','#e0f2fe','#f0fdf4'];
+  const classColorMap={};classes.forEach((c,i)=>{classColorMap[c.id]=i%12;});
+  const legendEl=document.getElementById('class-legend-items');
+  if(legendEl)legendEl.innerHTML=classes.map((c,i)=>`<span style="font-size:12px;color:#888;display:inline-flex;align-items:center;gap:4px;margin-left:6px"><span style="width:10px;height:10px;border-radius:3px;background:${CLASS_BG[i%12]};display:inline-block"></span>${c.name}</span>`).join('');
+
+  function evtColor(e){return e.classId&&classColorMap[e.classId]!==undefined?`cls-c${classColorMap[e.classId]}`:'학원';}
+  function evtLabel(e){return e.className||e.note||'학원 수업';}
+  function evtTime(e){return e.time+(e.timeEnd?'~'+e.timeEnd:'');}
+
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const dimPrev=new Date(calYear,calMonth,0).getDate();
+  let html=DOWS.map((d,i)=>`<div class="cal-dow ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('');
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push({day:dimPrev-firstDay+1+i,cur:false});
+  for(let i=1;i<=dim;i++)cells.push({day:i,cur:true});
+  const rem=42-cells.length;for(let i=1;i<=rem;i++)cells.push({day:i,cur:false,next:true});
+  cells.forEach(({day,cur,next})=>{
+    let ds;
+    if(cur)ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    else if(next)ds=`${calYear}-${String(calMonth+2).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    else ds=`${calYear}-${String(calMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday=ds===TODAYSTR,isSel=ds===selectedDate;
+    const dow=new Date(ds).getDay();
+    const evts=schedules.filter(s=>s.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const shown=evts.slice(0,2),more=evts.length-2;
+    const dateLabel=isToday?`<span class="today-badge">${day}</span>`:`<span class="cal-dn ${dow===0?'sun':dow===6?'sat':''}">${day}</span>`;
+    const evtHtml=shown.map(e=>`<div class="cal-evt ${evtColor(e)}" onclick="event.stopPropagation();editSchedule('${e.id}')">${evtTime(e)} ${evtLabel(e)}</div>`).join('');
+    html+=`<div class="cal-cell${isToday?' today':''}${!cur?' other-month':''}${isSel?' selected':''}" onclick="selectDate('${ds}')">
+      ${dateLabel}${evtHtml}${more>0?`<div class="cal-more">+${more}개 더</div>`:''}
+    </div>`;
+  });
+  document.getElementById('cal-grid').innerHTML=html;
+  renderTodayPanel();
+  if(selectedDate)renderSelDay();
+}
+
+function evtItemHtml(e){
+  return `<div class="evt-item">
+    <div class="evt-dot"></div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700">${e.time||''}${e.timeEnd?' ~ '+e.timeEnd:''}</div>
+      <div style="font-size:12px;color:#555">${e.className||e.note||'학원 수업'}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button class="btn sm" onclick="editSchedule('${e.id}')">수정</button>
+      <button class="btn sm danger" onclick="deleteSchedule('${e.id}')">삭제</button>
+    </div>
+  </div>`;
+}
+
+function renderTodayPanel(){
+  const evts=schedules.filter(s=>s.date===TODAYSTR).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  document.getElementById('today-list').innerHTML=evts.length?evts.map(evtItemHtml).join(''):'<div class="empty-state">오늘 수업이 없어요</div>';
+}
+
+window.selectDate=function(d){selectedDate=selectedDate===d?null:d;renderCalendar();};
+function renderSelDay(){
+  const card=document.getElementById('sel-day-card');
+  if(!selectedDate){card.style.display='none';return;}
+  const evts=schedules.filter(s=>s.date===selectedDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const [,m,d]=selectedDate.split('-');
+  document.getElementById('sel-day-title').textContent=`${parseInt(m)}월 ${parseInt(d)}일 (${DOWNAMES[new Date(selectedDate).getDay()]})`;
+  document.getElementById('sel-day-list').innerHTML=evts.length?evts.map(evtItemHtml).join(''):'<div class="empty-state">이 날 수업이 없어요</div>';
+  document.getElementById('sel-add-btn').onclick=()=>openAddSchedule(selectedDate);
+  card.style.display='block';
+}
+
+// ── 수업 추가/수정 ──
+function addMinutesToTime(t,m){const[h,mn]=t.split(':').map(Number);const tot=h*60+mn+m;return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}
+function calcSfEndTime(){const t=document.getElementById('sf-time').value;const d=parseInt(document.getElementById('sf-duration').value)||60;if(t)document.getElementById('sf-time-end').value=addMinutesToTime(t,d);}
+function calcClEndTime(){const t=document.getElementById('cl-time').value;const d=parseInt(document.getElementById('cl-duration').value)||60;if(t&&document.getElementById('cl-time-end'))document.getElementById('cl-time-end').value=addMinutesToTime(t,d);}
+window.calcSfEndTime=calcSfEndTime;window.calcClEndTime=calcClEndTime;
+
+window.onScheduleClassChange=function(){
+  const cls=classes.find(c=>c.id===document.getElementById('sf-class').value);
+  if(!cls)return;
+  if(cls.time)document.getElementById('sf-time').value=cls.time;
+  calcSfEndTime();
+  toast(`${cls.name} 반 정보가 자동으로 채워졌어요!`);
+};
+
+window.openAddSchedule=function(dateOverride){
+  editingScheduleId=null;
+  populateClassSelects();
+  document.getElementById('sf-title').textContent='수업 일정 추가';
+  document.getElementById('sf-date').value=dateOverride||TODAYSTR;
+  document.getElementById('sf-time').value='10:00';
+  document.getElementById('sf-duration').value='60';
+  document.getElementById('sf-note').value='';
+  document.getElementById('sf-class').value='';
+  document.getElementById('modal-schedule').classList.add('open');
+};
+
+window.editSchedule=function(id){
+  const e=schedules.find(x=>x.id===id);if(!e)return;
+  editingScheduleId=id;
+  populateClassSelects();
+  document.getElementById('sf-title').textContent='수업 수정';
+  document.getElementById('sf-date').value=e.date||TODAYSTR;
+  document.getElementById('sf-time').value=e.time||'10:00';
+  document.getElementById('sf-duration').value='60';
+  document.getElementById('sf-note').value=e.note||'';
+  document.getElementById('sf-class').value=e.classId||'';
+  document.getElementById('modal-schedule').classList.add('open');
+};
+
+window.saveSchedule=async function(){
+  const date=document.getElementById('sf-date').value;
+  const time=document.getElementById('sf-time').value;
+  const dur=parseInt(document.getElementById('sf-duration').value)||60;
+  const timeEnd=time?addMinutesToTime(time,dur):null;
+  const note=document.getElementById('sf-note').value;
+  const classId=document.getElementById('sf-class').value;
+  const cls=classes.find(c=>c.id===classId);
+  if(!date){alert('날짜를 입력해주세요');return;}
+  const data={date,time,timeEnd,type:'학원',note:cls?cls.name:note,classId:classId||null,className:cls?cls.name:null,teacher:cls?cls.teacher:''};
+  const id=editingScheduleId||('s'+Date.now()+'_'+Math.random().toString(36).slice(2,5));
+  await saveDoc('schedules',id,data);
+  closeModal('modal-schedule');
+  toast(editingScheduleId?'수업이 수정됐어요!':'수업이 추가됐어요!');
+};
+
+window.deleteSchedule=function(id){
+  const e=schedules.find(x=>x.id===id);if(!e)return;
+  const grpId=e.repeatGroupId||e.classRepeatGroupId;
+  if(grpId){pendingDelId=id;document.getElementById('modal-del-repeat').classList.add('open');}
+  else{if(!confirm('이 수업을 삭제할까요?'))return;delDoc('schedules',id).then(()=>toast('삭제됐어요'));}
+};
+
+window.confirmDelRepeat=async function(mode){
+  closeModal('modal-del-repeat');
+  const e=schedules.find(x=>x.id===pendingDelId);if(!e)return;
+  const grpId=e.repeatGroupId||e.classRepeatGroupId;
+  const getGroup=()=>schedules.filter(s=>s.repeatGroupId===grpId||s.classRepeatGroupId===grpId);
+  if(mode==='one'){await delDoc('schedules',pendingDelId);toast('삭제됐어요');}
+  else if(mode==='future'){const t=getGroup().filter(s=>s.date>=e.date);for(const s of t){await delDoc('schedules',s.id);await new Promise(r=>setTimeout(r,15));}toast(`${t.length}개 삭제됐어요`);}
+  else{const t=getGroup();for(const s of t){await delDoc('schedules',s.id);await new Promise(r=>setTimeout(r,15));}toast(`전체 ${t.length}개 삭제됐어요`);}
+  pendingDelId=null;
+};
+
+// ── 학생 관리 ──
+function renderStudents(){
+  const q=document.getElementById('search-input')?.value.toLowerCase()||'';
+  const fs=document.getElementById('filter-status')?.value||'';
+  const fc=document.getElementById('filter-class')?.value||'';
+  const filtered=students.filter(s=>
+    (!q||(s.name||'').toLowerCase().includes(q)||(s.phone||'').includes(q))&&
+    (!fs||(fs==='active'?s.status==='active':s.status!=='active'))&&
+    (!fc||s.classId===fc)
+  ).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+
+  const fm=`${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}`;
+  const day=TODAY.getDate();
+  const tbody=document.getElementById('student-tbody');if(!tbody)return;
+  tbody.innerHTML=filtered.map(s=>{
+    const paidKey=`paid-${s.id}-${fm}`;
+    const isPaid=!!(attendance[paidKey]);
+    const paidAt=attendance[paidKey]?.paidAt||'';
+    let rowBg='',payBadge='';
+    if(s.status==='active'&&s.payDate){
+      if(isPaid){rowBg='background:#f0fdf8;';payBadge=`<span style="background:#d4f0e5;color:#085041;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;display:block;margin-top:2px">✅ 완료${paidAt?' '+paidAt.slice(5):''}</span>`;}
+      else if(s.payDate<day){rowBg='background:#fff5f5;';payBadge=`<span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;display:block;margin-top:2px">⏰ 미완료</span>`;}
+      else if(s.payDate<=day+3){rowBg='background:#fffdf0;';payBadge=`<span style="background:#fef3d4;color:#8a6000;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;display:block;margin-top:2px">🔔 ${s.payDate}일 예정</span>`;}
+    }
+    return `<tr style="${rowBg}cursor:pointer" ondblclick="editStudent('${s.id}')">
+      <td style="font-weight:600">${s.name||''}</td>
+      <td style="color:#666;font-size:12px">${s.phone||''}</td>
+      <td>${s.course||''}</td>
+      <td style="font-size:12px;color:#0F6E56;font-weight:600">${s.className||'-'}</td>
+      <td>${s.payDate?`매월 ${s.payDate}일`+payBadge:'-'}</td>
+      <td>${Number(s.amount||0).toLocaleString()}원</td>
+      <td>${s.payLink?`<button class="copy-btn" onclick="copyText('${s.payLink}','링크 복사됐어요!')">링크 복사</button>`:'<span style="color:#ccc;font-size:11px">없음</span>'}</td>
+      <td><span class="badge ${s.status==='active'?'active':'inactive'}">${s.status==='active'?'수강중':'중단'}</span></td>
+      <td><button class="btn sm" onclick="editStudent('${s.id}')">수정</button></td>
+    </tr>`;
+  }).join('');
+
+  const active=students.filter(s=>s.status==='active');
+  const paidCount=active.filter(s=>attendance[`paid-${s.id}-${fm}`]).length;
+  if(document.getElementById('s-total'))document.getElementById('s-total').textContent=students.length;
+  if(document.getElementById('s-active'))document.getElementById('s-active').textContent=active.length;
+  if(document.getElementById('s-paid'))document.getElementById('s-paid').textContent=paidCount;
+  if(document.getElementById('s-unpaid'))document.getElementById('s-unpaid').textContent=active.filter(s=>s.payDate&&!attendance[`paid-${s.id}-${fm}`]).length;
+}
+
+window.copyText=function(text,msg){navigator.clipboard.writeText(text).then(()=>toast(msg||'복사됐어요!'));};
+
+window.openAddStudent=function(){
+  editingStudentId=null;populateClassSelects();
+  document.getElementById('modal-student-title').textContent='학생 추가';
+  ['f-name','f-phone','f-course','f-paydate','f-amount','f-start','f-paylink','f-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-status').value='active';
+  document.getElementById('f-class').value='';
+  document.getElementById('modal-student').classList.add('open');
+};
+
+window.editStudent=function(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  editingStudentId=id;populateClassSelects();
+  document.getElementById('modal-student-title').textContent='학생 정보 수정';
+  document.getElementById('f-name').value=s.name||'';
+  document.getElementById('f-phone').value=s.phone||'';
+  document.getElementById('f-course').value=s.course||'';
+  document.getElementById('f-paydate').value=s.payDate||'';
+  document.getElementById('f-amount').value=s.amount||'';
+  document.getElementById('f-paylink').value=s.payLink||'';
+  document.getElementById('f-start').value=s.start||'';
+  document.getElementById('f-status').value=s.status||'active';
+  document.getElementById('f-memo').value=s.memo||'';
+  document.getElementById('f-class').value=s.classId||'';
+  document.getElementById('modal-student').classList.add('open');
+};
+
+window.onClassChange=function(){
+  const cls=classes.find(c=>c.id===document.getElementById('f-class')?.value);
+  if(!cls)return;
+  if(cls.payLink)document.getElementById('f-paylink').value=cls.payLink;
+  toast(`${cls.name} 반으로 연동됐어요!`);
+};
+
+window.saveStudent=async function(){
+  const classId=document.getElementById('f-class')?.value||'';
+  const cls=classes.find(c=>c.id===classId);
+  const data={
+    name:document.getElementById('f-name').value,
+    phone:document.getElementById('f-phone').value,
+    type:'학원',
+    teacher:cls?cls.teacher:'',
+    course:document.getElementById('f-course').value,
+    payDate:parseInt(document.getElementById('f-paydate').value)||null,
+    amount:parseInt(document.getElementById('f-amount').value)||0,
+    payLink:document.getElementById('f-paylink').value,
+    start:document.getElementById('f-start').value,
+    status:document.getElementById('f-status').value,
+    memo:document.getElementById('f-memo').value,
+    classId:classId||null,className:cls?cls.name:null,
+  };
+  if(!data.name){alert('이름을 입력해주세요');return;}
+  const id=editingStudentId||('st'+Date.now());
+  await saveDoc('students',id,data);closeModal('modal-student');
+  toast(editingStudentId?'수정됐어요!':'학생이 추가됐어요!');
+};
+
+window.deleteStudent=async function(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  if(!confirm(`${s.name} 학생을 삭제할까요?`))return;
+  await delDoc('students',id);toast('삭제됐어요');
+};
+
+// ── 결제 알림 ──
+function renderPayment(){
+  const el=document.getElementById('payment-list');if(!el)return;
+  const day=TODAY.getDate();
+  const fm=`${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}`;
+  const fc=document.getElementById('pay-filter-class')?.value||'';
+  const sq=(document.getElementById('pay-search')?.value||'').toLowerCase();
+  const mon=TODAY.getMonth()+1;
+
+  const payStudents=students.filter(s=>
+    s.status==='active'&&s.payDate&&
+    (!fc||s.classId===fc)&&
+    (!sq||(s.name||'').toLowerCase().includes(sq))&&
+    !attendance[`paid-${s.id}-${fm}`]
+  ).sort((a,b)=>a.payDate-b.payDate);
+
+  let html='';
+  if(payStudents.length){
+    const badges=payStudents.map(s=>{
+      const cls=s.className?' ('+s.className+')':'';
+      return '<span style="background:#fff;border:1px solid #ddd;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">'+s.name+cls+'</span>';
+    }).join('');
+    html='<div class="card" style="background:#fff9e6;border-color:#ffd966;margin-bottom:14px">'
+      +'<div style="font-size:13px;font-weight:700;color:#7a5800;margin-bottom:8px">📋 결제 필요 학생 ('+payStudents.length+'명)</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+badges+'</div></div>';
+  }
+
+  if(payStudents.length){
+    const items=payStudents.map(s=>{
+      const payLinkTxt=s.payLink?'\n결제 링크: '+s.payLink+'\n':'';
+      const msg='안녕하세요, '+s.name+'님! 😊\n요시꼬 어학원입니다.\n\n'+mon+'월 수강료를 안내드려요.\n금액: '+Number(s.amount).toLocaleString()+'원\n결제일: 매월 '+s.payDate+'일\n'+payLinkTxt+'\n감사합니다! 🙏';
+      window['_paymsg_'+s.id]=msg;
+      const isPast=s.payDate<day;
+      const badge=isPast
+        ?'<span style="background:#fde8e8;color:#c0392b;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:4px">⏰ '+s.payDate+'일 지남</span>'
+        :'<span style="background:#fff9e6;color:#8a6000;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:4px">예정 '+s.payDate+'일</span>';
+      const clsLabel=s.className?'<span style="font-size:11px;color:#0F6E56;margin-left:4px">'+s.className+'</span>':'';
+      const linkBtn=s.payLink?'<button class="copy-btn" style="margin-top:5px" onclick="copyText(\''+s.payLink+'\',\'링크 복사됐어요!\')">💳 결제 링크</button>':'';
+      const sid=s.id;
+      return '<div>'
+        +'<div class="pay-item">'
+          +'<div>'
+            +'<div style="font-size:14px;font-weight:700">'+s.name+clsLabel+badge+'</div>'
+            +'<div style="font-size:12px;color:#888;margin-top:2px">매월 '+s.payDate+'일 · '+Number(s.amount).toLocaleString()+'원</div>'
+            +linkBtn
+          +'</div>'
+          +'<div style="display:flex;flex-direction:column;gap:4px">'
+            +'<button class="copy-btn" onclick="copyText(window[\'_paymsg_\'+ \''+sid+'\'],\'문자 복사됐어요!\')">문자 복사</button>'
+            +'<button class="copy-btn" style="background:#d4f0e5;color:#085041;border-color:#81c995;font-weight:600" onclick="markPaid(\''+sid+'\',\''+fm+'\',true)">✅ 결제완료</button>'
+          +'</div>'
+        +'</div>'
+        +'<div class="msg-box" onclick="copyText(window[\'_paymsg_\'+\''+sid+'\'],\'문자 복사됐어요!\')">'+msg.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
+        +'<div class="msg-hint">탭하면 복사</div>'
+        +'<div class="divider"></div>'
+        +'</div>';
+    }).join('');
+    html+='<div class="card"><div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#0F6E56">💳 수강료 안내 목록</div>'+items+'</div>';
+  }
+  if(!payStudents.length){html='<div class="card" style="text-align:center;padding:40px;color:#bbb">이번 달 결제 예정 학생이 없어요 ☺</div>';}
+  el.innerHTML=html;
+}
+
+window.markPaid=async function(sid,ym,isPaid){
+  const key=`paid-${sid}-${ym}`;
+  if(isPaid){
+    const now=new Date();
+    const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    await saveDoc('attendance',key,{value:'paid',paidAt:`${ds} ${ts}`});
+    toast('결제완료로 표시됐어요! ✅');
+  } else {
+    await delDoc('attendance',key);toast('결제완료가 취소됐어요');
+  }
+};
+
+// ── 결제 이력 ──
+function renderPayHistory(){
+  const fm=document.getElementById('ph-month')?.value||YYYYMM;
+  const sq=(document.getElementById('ph-search')?.value||'').toLowerCase();
+  const fc=document.getElementById('ph-class')?.value||'';
+  const el=document.getElementById('payhistory-list');if(!el)return;
+
+  const paidList=students.filter(s=>{
+    if(s.status!=='active')return false;
+    if(fc&&s.classId!==fc)return false;
+    if(sq&&!(s.name||'').toLowerCase().includes(sq))return false;
+    return !!(attendance[`paid-${s.id}-${fm}`]);
+  }).map(s=>({...s,paidAt:attendance[`paid-${s.id}-${fm}`]?.paidAt||''}))
+    .sort((a,b)=>a.paidAt.localeCompare(b.paidAt));
+
+  const unpaidList=students.filter(s=>{
+    if(s.status!=='active'||!s.payDate)return false;
+    if(fc&&s.classId!==fc)return false;
+    return !attendance[`paid-${s.id}-${fm}`];
+  }).sort((a,b)=>a.payDate-b.payDate);
+
+  let html=`<div class="stat-grid" style="margin-bottom:16px">
+    <div class="stat"><div class="stat-label">결제완료</div><div class="stat-value green">${paidList.length}명</div></div>
+    <div class="stat"><div class="stat-label">미결제</div><div class="stat-value" style="color:#c0392b">${unpaidList.length}명</div></div>
+    <div class="stat"><div class="stat-label">완료 금액</div><div class="stat-value green" style="font-size:16px">${paidList.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}원</div></div>
+    <div class="stat"><div class="stat-label">미수금</div><div class="stat-value" style="color:#c0392b;font-size:16px">${unpaidList.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}원</div></div>
+  </div>`;
+
+  if(paidList.length){
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#0F6E56">✅ 결제완료 (${paidList.length}명)</div>
+      <table><thead><tr><th style="width:80px">이름</th><th style="width:80px">반</th><th style="width:90px">수강료</th><th>결제완료 일시</th><th style="width:60px">취소</th></tr></thead>
+      <tbody>${paidList.map(s=>`<tr style="background:#f0fdf8">
+        <td style="font-weight:600">${s.name}</td>
+        <td style="font-size:12px;color:#0F6E56">${s.className||'-'}</td>
+        <td style="font-weight:600;color:#0F6E56">${Number(s.amount||0).toLocaleString()}원</td>
+        <td style="font-size:12px;color:#555">${s.paidAt||'-'}</td>
+        <td><button class="btn sm danger" onclick="markPaid('${s.id}','${fm}',false)">취소</button></td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
+  if(unpaidList.length){
+    html+=`<div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#c0392b">⏰ 미결제 (${unpaidList.length}명)</div>
+      <table><thead><tr><th style="width:80px">이름</th><th style="width:80px">반</th><th style="width:80px">결제일</th><th style="width:90px">수강료</th><th>완료 처리</th></tr></thead>
+      <tbody>${unpaidList.map(s=>`<tr style="background:#fff5f5">
+        <td style="font-weight:600">${s.name}</td>
+        <td style="font-size:12px;color:#0F6E56">${s.className||'-'}</td>
+        <td style="color:#c0392b;font-weight:600">매월 ${s.payDate}일</td>
+        <td>${Number(s.amount||0).toLocaleString()}원</td>
+        <td><button class="btn sm primary" onclick="markPaid('${s.id}','${fm}',true)">✅ 결제완료</button></td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
+  if(!paidList.length&&!unpaidList.length){html='<div class="card" style="text-align:center;padding:40px;color:#bbb">결제 데이터가 없어요</div>';}
+  el.innerHTML=html;
+}
+
+// ── 출결 관리 ──
+function getAtt(sid,ym,day){return attendance[`${sid}-${ym}-${day}`]?.value||'';}
+
+function renderAttendance(){
+  const fm=document.getElementById('att-month')?.value||YYYYMM;
+  const fc=document.getElementById('att-class')?.value||'';
+  const [y,m]=fm.split('-').map(Number);
+  const dim=new Date(y,m,0).getDate();
+  const allDays=Array.from({length:dim},(_,i)=>i+1);
+  const rel=students.filter(s=>s.status==='active'&&(!fc||s.classId===fc));
+  const el=document.getElementById('attendance-list');if(!el)return;
+  if(!rel.length){el.innerHTML='<div class="card" style="text-align:center;color:#bbb;padding:40px">표시할 학생이 없어요.</div>';return;}
+
+  el.innerHTML=rel.map(s=>{
+    const att=allDays.filter(d=>getAtt(s.id,fm,d)==='출석').length;
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="avatar">${s.name.slice(0,1)}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700">${s.name}</div>
+          <div style="font-size:12px;color:#888">${s.className||'반 미정'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:700;color:#0F6E56">출석 ${att}회</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${allDays.map(d=>{
+          const dow=new Date(y,m-1,d).getDay();
+          const a=getAtt(s.id,fm,d)==='출석';
+          const isSun=dow===0,isSat=dow===6;
+          const bg=a?'#0F6E56':'#f5f5f5';
+          const col=a?'#fff':(isSun?'#c0392b':isSat?'#2980b9':'#999');
+          const border=a?'#0F6E56':(isSun?'#fcc':isSat?'#bde':'#e0e0e0');
+          return `<div style="text-align:center;cursor:pointer" onclick="toggleAtt('${s.id}','${fm}',${d})">
+            <div style="font-size:9px;color:${isSun?'#c0392b':isSat?'#2980b9':'#bbb'};margin-bottom:1px">${DOWNAMES[dow]}</div>
+            <div style="width:32px;height:32px;border-radius:8px;border:1px solid ${border};background:${bg};color:${col};font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${d}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleAtt=async function(sid,ym,day){
+  const key=`${sid}-${ym}-${day}`;
+  const cur=attendance[key]?.value||'';
+  if(cur==='출석')await delDoc('attendance',key);
+  else await saveDoc('attendance',key,{value:'출석'});
+  renderAttendance();
+};
+
+// ── 반 관리 ──
+function renderClasses(){
+  const el=document.getElementById('class-list');if(!el)return;
+  const CLASS_BG=['#c8ead8','#c8dff8','#fce8b2','#ede9fe','#fdd9d9','#d1fae5','#fef3c7','#dbeafe','#fce7f3','#d1f5f7','#e0f2fe','#f0fdf4'];
+  const CLASS_COL=['#085041','#1a5fa8','#8a6000','#6b21a8','#991b1b','#065f46','#92400e','#1e40af','#9d174d','#0e7490','#075985','#166534'];
+  if(!classes.length){el.innerHTML='<div class="card" style="text-align:center;color:#bbb;padding:40px">아직 반이 없어요.</div>';return;}
+  el.innerHTML=classes.map((c,i)=>{
+    const ci=i%12;
+    const members=students.filter(s=>s.status==='active'&&s.classId===c.id);
+    const daysStr=c.days&&c.days.length?'매주 '+c.days.map(idx=>DOWNAMES[idx]).join('·'):'';
+    const timeStr=c.time?(c.time+(c.timeEnd?' ~ '+c.timeEnd:'')):'';
+    return `<div class="class-card" style="border-left:4px solid ${CLASS_BG[ci]}">
+      <div class="class-card-header">
+        <div>
+          <div class="class-name" style="display:flex;align-items:center;gap:8px">
+            <span style="width:12px;height:12px;border-radius:50%;background:${CLASS_BG[ci]};border:2px solid ${CLASS_COL[ci]};display:inline-block"></span>
+            ${c.name}
+          </div>
+          <div class="class-meta">${c.teacher||''} ${daysStr?' · '+daysStr:''} ${timeStr?' · '+timeStr:''} ${c.memo?' · '+c.memo:''}</div>
+          ${c.payLink?`<div style="font-size:11px;color:#1565c0;margin-top:2px">💳 결제링크 연동됨</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" onclick="editClass('${c.id}')">수정</button>
+          <button class="btn sm danger" onclick="deleteClass('${c.id}','${c.name}')">삭제</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+        ${members.length?members.map(s=>`<span class="student-chip">${s.name}</span>`).join(''):'<span style="font-size:12px;color:#bbb">등록된 학생이 없어요</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.toggleClWd=function(i){document.getElementById('cl-wd-label-'+i)?.classList.toggle('on',document.getElementById('cl-wd-'+i).checked);};
+
+window.openAddClass=function(){
+  editingClassId=null;
+  document.getElementById('modal-class-title').textContent='반 추가';
+  ['cl-name','cl-teacher','cl-memo','cl-paylink','cl-start-date','cl-end-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('cl-time').value='10:00';
+  document.getElementById('cl-duration').value='60';
+  document.getElementById('cl-start-date').value=TODAYSTR;
+  [0,1,2,3,4,5,6].forEach(i=>{const cb=document.getElementById('cl-wd-'+i);if(cb)cb.checked=false;document.getElementById('cl-wd-label-'+i)?.classList.remove('on');});
+  document.getElementById('modal-class').classList.add('open');
+};
+
+window.editClass=function(id){
+  const c=classes.find(x=>x.id===id);if(!c)return;
+  editingClassId=id;
+  document.getElementById('modal-class-title').textContent='반 수정';
+  document.getElementById('cl-name').value=c.name||'';
+  document.getElementById('cl-teacher').value=c.teacher||'';
+  document.getElementById('cl-memo').value=c.memo||'';
+  document.getElementById('cl-paylink').value=c.payLink||'';
+  document.getElementById('cl-time').value=c.time||'10:00';
+  document.getElementById('cl-duration').value='60';
+  document.getElementById('cl-start-date').value=TODAYSTR;
+  document.getElementById('cl-end-date').value='';
+  [0,1,2,3,4,5,6].forEach(i=>{const on=c.days&&c.days.includes(i);const cb=document.getElementById('cl-wd-'+i);if(cb)cb.checked=on;document.getElementById('cl-wd-label-'+i)?.classList.toggle('on',on);});
+  document.getElementById('modal-class').classList.add('open');
+};
+
+window.saveClass=async function(){
+  const name=document.getElementById('cl-name').value.trim();
+  if(!name){alert('반 이름을 입력해주세요');return;}
+  const teacher=document.getElementById('cl-teacher').value;
+  const memo=document.getElementById('cl-memo').value;
+  const payLink=document.getElementById('cl-paylink').value.trim();
+  const time=document.getElementById('cl-time').value;
+  const duration=parseInt(document.getElementById('cl-duration').value)||60;
+  const timeEnd=time?addMinutesToTime(time,duration):null;
+  const days=[0,1,2,3,4,5,6].filter(i=>document.getElementById('cl-wd-'+i)?.checked);
+  const startDateStr=document.getElementById('cl-start-date').value||TODAYSTR;
+  const endDateStr=document.getElementById('cl-end-date').value;
+  const id=editingClassId||('cl'+Date.now());
+  await saveDoc('classes',id,{name,teacher,type:'학원',memo,payLink,time,timeEnd,days});
+
+  // 소속 학생 결제링크 자동 연동
+  if(payLink){const members=students.filter(s=>s.classId===id);for(const s of members){await saveDoc('students',s.id,{...s,payLink});await new Promise(r=>setTimeout(r,15));}}
+
+  if(days.length>0){
+    const oldScheds=schedules.filter(s=>s.classRepeatGroupId===id);
+    for(const s of oldScheds){await delDoc('schedules',s.id);await new Promise(r=>setTimeout(r,15));}
+    const start=new Date(startDateStr),end=endDateStr?new Date(endDateStr):new Date(startDateStr);
+    if(!endDateStr)end.setMonth(end.getMonth()+3);
+    let cur=new Date(start),count=0;
+    while(cur<=end){
+      if(days.includes(cur.getDay())){
+        await saveDoc('schedules','cs'+Date.now()+'_'+Math.random().toString(36).slice(2,5),{
+          date:cur.toISOString().slice(0,10),time,timeEnd:timeEnd||null,
+          teacher,type:'학원',note:name,classId:id,className:name,
+          repeat:'weekly',repeatGroupId:'rg_class_'+id,classRepeatGroupId:id
+        });
+        count++;await new Promise(r=>setTimeout(r,20));
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+    closeModal('modal-class');toast(`반 추가! 스케줄 ${count}개 자동 생성됐어요.`);
+  } else {closeModal('modal-class');toast('반이 저장됐어요!');}
+};
+
+window.deleteClass=async function(id,name){
+  const linked=schedules.filter(s=>s.classRepeatGroupId===id);
+  if(!confirm(`'${name}' 반을 삭제할까요?${linked.length?'
+연동된 스케줄 '+linked.length+'개도 삭제돼요.':''}`))return;
+  for(const s of linked){await delDoc('schedules',s.id);await new Promise(r=>setTimeout(r,15));}
+  await delDoc('classes',id);toast('반이 삭제됐어요');
+};
+
+window.exportCSV=function(){
+  const headers=['이름','전화번호','반','수강 내용','결제일','수강료','결제링크','상태','메모'];
+  const rows=students.map(s=>[s.name,s.phone,s.className||'',s.course,'매월 '+s.payDate+'일',s.amount+'원',s.payLink||'',s.status==='active'?'수강중':'중단',s.memo||'']);
+  const csv='﻿'+[headers,...rows].map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('
+');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='요시꼬어학원_학생관리.csv';a.click();
+};
+
+document.querySelectorAll('.modal-bg').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+
+document.getElementById('att-month').value=YYYYMM;
+document.getElementById('ph-month').value=YYYYMM;
+</script>
+</body>
+</html>
