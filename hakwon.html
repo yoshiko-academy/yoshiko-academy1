@@ -906,6 +906,7 @@ function renderPayHistory(){
   const unpaidList=students.filter(s=>{
     if(s.status!=='active'||!s.payDate)return false;
     if(fc&&s.classId!==fc)return false;
+    if(sq&&!(s.name||'').toLowerCase().includes(sq))return false;
     return !attendance[`paid-${s.id}-${fm}`];
   }).sort((a,b)=>a.payDate-b.payDate);
 
