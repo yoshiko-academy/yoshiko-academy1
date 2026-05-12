@@ -1542,13 +1542,13 @@ function renderPayHistory(){
 
   // 미결제 학생
   const unpaidList=students.filter(s=>{
-    if(s.status!=='active'||!s.payDate)return false;
-    if(s.type==='출강')return false;
+    if(s.status!=='active')return false;
     if(ft&&s.teacher!==ft)return false;
     if(ftype&&s.type!==ftype)return false;
+    if(sq&&!(s.name||'').toLowerCase().includes(sq))return false;
     const key=`paid-${s.id}-${fm}`;
     return !attendance[key]?.value;
-  }).sort((a,b)=>a.payDate-b.payDate);
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   let html='';
 
@@ -1599,7 +1599,7 @@ function renderPayHistory(){
           <td style="font-weight:600">${s.name}</td>
           <td><span class="badge ${s.type}" style="font-size:10px">${s.type}</span></td>
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
-          <td style="color:#c0392b;font-weight:600">매월 ${s.payDate}일</td>
+          <td style="color:#c0392b;font-weight:600">${s.payDate?'매월 '+s.payDate+'일':(s.lessonCount?s.lessonCount+'회 기준':'-')}</td>
           <td>${Number(s.amount||0).toLocaleString()}원</td>
           <td><button class="btn sm primary" onclick="window.markPaid('${s.id}','${fm}',true)">✅ 결제완료</button></td>
         </tr>`).join('')}
