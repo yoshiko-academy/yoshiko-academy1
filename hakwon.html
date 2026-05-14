@@ -153,7 +153,6 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     <button class="nav-btn active" onclick="showPage('calendar',this)">📅 캘린더</button>
     <button class="nav-btn" onclick="showPage('students',this)">👩‍🎓 학생 관리</button>
     <button class="nav-btn" onclick="showPage('payhistory',this)">📋 결제 이력</button>
-    <button class="nav-btn" onclick="showPage('attendance',this)">✅ 출결 관리</button>
     <button class="nav-btn" onclick="showPage('classes',this)">🏫 반 관리</button>
   </div>
   <div class="sync"><div class="sync-dot" id="sync-dot"></div><span id="sync-txt">연결 중...</span></div>
@@ -225,20 +224,6 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     <select id="ph-class" onchange="renderPayHistory()"><option value="">전체 반</option></select>
   </div>
   <div id="payhistory-list"></div>
-</div>
-
-<!-- 출결 관리 -->
-<div id="page-attendance" class="page">
-  <div class="toolbar">
-    <select id="att-type" onchange="renderAttendance()">
-      <option value="">전화+개인 전체</option>
-      <option value="전화">전화</option>
-      <option value="개인">개인</option>
-    </select>
-    <input type="month" id="att-month" onchange="renderAttendance()">
-  </div>
-  <div class="card" style="background:#e8f4fd;border-color:#90caf9;margin-bottom:4px"><div style="font-size:12px;color:#1565c0">ℹ 전화·개인 수업 학생만 표시돼요. 날짜를 클릭하면 출석 체크돼요.</div></div>
-  <div id="attendance-list"></div>
 </div>
 
 <!-- 반 관리 -->
@@ -412,7 +397,6 @@ function refreshAll(){
   if(id==='calendar')renderCalendar();
   if(id==='students')renderStudents();
   if(id==='payhistory')renderPayHistory();
-  if(id==='attendance')renderAttendance();
   if(id==='classes')renderClasses();
 }
 
@@ -807,9 +791,10 @@ function renderStudents(){
     </tr>`;
   }).join('');
 
-  const active=students.filter(s=>s.status==='active'&&s.type==='학원');
+  const hakwonStudents=students.filter(s=>s.type==='학원');
+  const active=hakwonStudents.filter(s=>s.status==='active');
   const paidCount=active.filter(s=>attendance[`paid-${s.id}-${fm}`]).length;
-  if(document.getElementById('s-total'))document.getElementById('s-total').textContent=students.length;
+  if(document.getElementById('s-total'))document.getElementById('s-total').textContent=students.filter(s=>s.type==='학원').length;
   if(document.getElementById('s-active'))document.getElementById('s-active').textContent=active.length;
   if(document.getElementById('s-paid'))document.getElementById('s-paid').textContent=paidCount;
   if(document.getElementById('s-unpaid'))document.getElementById('s-unpaid').textContent=active.filter(s=>s.payDate&&!attendance[`paid-${s.id}-${fm}`]).length;
@@ -954,46 +939,6 @@ function renderPayHistory(){
 // ── 출결 관리 ──
 function getAtt(sid,ym,day){return attendance[`${sid}-${ym}-${day}`]?.value||'';}
 
-function renderAttendance(){
-  const fm=document.getElementById('att-month')?.value||YYYYMM;
-  const fc=document.getElementById('att-type')?.value||'';
-  const [y,m]=fm.split('-').map(Number);
-  const dim=new Date(y,m,0).getDate();
-  const allDays=Array.from({length:dim},(_,i)=>i+1);
-  const rel=students.filter(s=>s.status==='active'&&(s.type==='전화'||s.type==='개인')&&(!fc||s.type===fc));
-  const el=document.getElementById('attendance-list');if(!el)return;
-  if(!rel.length){el.innerHTML='<div class="card" style="text-align:center;color:#bbb;padding:40px">표시할 학생이 없어요.</div>';return;}
-
-  el.innerHTML=rel.map(s=>{
-    const att=allDays.filter(d=>getAtt(s.id,fm,d)==='출석').length;
-    return `<div class="card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div class="avatar">${s.name.slice(0,1)}</div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${s.name}</div>
-          <div style="font-size:12px;color:#888">${s.className||'반 미정'}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;font-weight:700;color:#0F6E56">출석 ${att}회</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${allDays.map(d=>{
-          const dow=new Date(y,m-1,d).getDay();
-          const a=getAtt(s.id,fm,d)==='출석';
-          const isSun=dow===0,isSat=dow===6;
-          const bg=a?'#0F6E56':'#f5f5f5';
-          const col=a?'#fff':(isSun?'#c0392b':isSat?'#2980b9':'#999');
-          const border=a?'#0F6E56':(isSun?'#fcc':isSat?'#bde':'#e0e0e0');
-          return `<div style="text-align:center;cursor:pointer" onclick="toggleAtt('${s.id}','${fm}',${d})">
-            <div style="font-size:9px;color:${isSun?'#c0392b':isSat?'#2980b9':'#bbb'};margin-bottom:1px">${DOWNAMES[dow]}</div>
-            <div style="width:32px;height:32px;border-radius:8px;border:1px solid ${border};background:${bg};color:${col};font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${d}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }).join('');
-}
 
 window.toggleAtt=async function(sid,ym,day){
   const key=`${sid}-${ym}-${day}`;
@@ -1128,7 +1073,6 @@ const _grid=document.getElementById('cal-grid');if(_grid){_grid.style.display='b
 document.getElementById('ph-month').value=YYYYMM;
 
 // ★ module 스코프 함수들 window에 등록
-window.renderAttendance=renderAttendance;
 window.renderStudents=renderStudents;
 window.renderPayHistory=renderPayHistory;
 window.renderClasses=renderClasses;
