@@ -1568,7 +1568,7 @@ function renderPayHistory(){
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
           <td style="font-weight:600;color:#0F6E56">${Number(s.amount||0).toLocaleString()}원</td>
           <td style="font-size:12px;color:#555">${s.paidAt||'-'}</td>
-          <td><input type="text" placeholder="메모..." value="${(attendance['phmemo-'+s.id+'-'+fm]||'').replace(/"/g,'&quot;')}"
+          <td><input type="text" placeholder="메모..." value="${(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString().replace(/"/g,'&quot;')}"
             onchange="window.savePhMemo('${s.id}','${fm}',this.value)"
             style="width:100%;padding:3px 6px;border:1px solid #e0e0e0;border-radius:5px;font-size:11px"></td>
           <td><button class="btn sm danger" onclick="window.markPaid('${s.id}','${fm}',false)">취소</button></td>
