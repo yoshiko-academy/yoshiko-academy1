@@ -1409,7 +1409,7 @@ function renderPayment(){
     (s.type==='학원'||s.type==='전화'||s.type==='개인')&&
     payMatchFilter(s)&&
     !attendance[`paid-${s.id}-${fm}`]?.value
-  ).sort((a,b)=>a.payDate-b.payDate);
+  ).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   // ★ 전화·개인: 수업 횟수 기반 (결제완료 안 된 학생)
   const lessonAlert=students.filter(s=>{
@@ -1530,7 +1530,7 @@ function renderPayHistory(){
     const key=`paid-${s.id}-${fm}`;
     const data=attendance[key];
     return {...s,paidAt:data?.paidAt||''};
-  }).sort((a,b)=>a.paidAt.localeCompare(b.paidAt));
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   // 미결제 학생
   const unpaidList=students.filter(s=>{

@@ -891,14 +891,14 @@ function renderPayHistory(){
     if(sq&&!(s.name||'').toLowerCase().includes(sq))return false;
     return !!(attendance[`paid-${s.id}-${fm}`]);
   }).map(s=>({...s,paidAt:attendance[`paid-${s.id}-${fm}`]?.paidAt||''}))
-    .sort((a,b)=>a.paidAt.localeCompare(b.paidAt));
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   const unpaidList=students.filter(s=>{
     if(s.status!=='active'||!s.payDate)return false;
     if(fc&&s.classId!==fc)return false;
     if(sq&&!(s.name||'').toLowerCase().includes(sq))return false;
     return !attendance[`paid-${s.id}-${fm}`];
-  }).sort((a,b)=>a.payDate-b.payDate);
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   let html=`<div class="stat-grid" style="margin-bottom:16px">
     <div class="stat"><div class="stat-label">결제완료</div><div class="stat-value green">${paidList.length}명</div></div>
