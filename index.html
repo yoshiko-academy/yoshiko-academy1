@@ -314,6 +314,12 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     <select id="f-class" onchange="window.onStudentClassChange()"><option value="">반 없음</option></select>
   </div></div>
   <div class="form-row full"><div><label>수강 내용 / 장소</label><input type="text" id="f-course" placeholder="예: 초급 일본어 회화..."></div></div>
+  <div class="form-row full" id="f-inhouse-row" style="display:none"><div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a">
+      <input type="checkbox" id="f-inhouse" style="width:16px;height:16px;accent-color:#0F6E56">
+      🏫 학원내 과외 (학원 앱에 표시)
+    </label>
+  </div></div>
   <div class="form-row">
     <div><label>결제일 (매월 며칠)</label><input type="number" id="f-paydate" min="1" max="31" placeholder="15"></div>
     <div><label>결제 금액 (원)</label><input type="number" id="f-amount" placeholder="150000"></div>
@@ -1251,8 +1257,10 @@ window.onStudentTypeChange=function(){
   const isPersonal=t==='전화'||t==='개인'||t==='출강';
   const row=document.getElementById('f-lessoncount-row');
   const trow=document.getElementById('f-lessontime-row');
+  const irow=document.getElementById('f-inhouse-row');
   if(row)row.style.display=isPersonal?'':'none';
   if(trow)trow.style.display='';
+  if(irow)irow.style.display=(t==='개인'||t==='출강')?'':'none';
   window.autoFillPayLink();
 };
 // ★ 유형/월횟수/결제주기 기준 결제 링크 자동 입력
@@ -1297,7 +1305,9 @@ window.openAddStudent=function(){
   [0,1,2,3,4,5,6].forEach(i=>{const cb=document.getElementById('f-day-'+i);if(cb)cb.checked=false;});
   const fc=document.getElementById('f-class');if(fc)fc.value='';
   document.getElementById('f-lessoncount-row').style.display='none';
-  document.getElementById('f-lessontime-row').style.display=''; // 수업시간은 항상 표시
+  document.getElementById('f-lessontime-row').style.display='';
+  const fih=document.getElementById('f-inhouse');if(fih)fih.checked=false;
+  const fihr=document.getElementById('f-inhouse-row');if(fihr)fihr.style.display='none'; // 수업시간은 항상 표시
   document.getElementById('modal-student').classList.add('open');
 };
 window.editStudent=function(id){
@@ -1320,7 +1330,9 @@ window.editStudent=function(id){
   const fc=document.getElementById('f-class');if(fc)fc.value=s.classId||'';
   const isPersonal=s.type==='전화'||s.type==='개인'||s.type==='출강';
   document.getElementById('f-lessoncount-row').style.display=isPersonal?'':'none';
-  document.getElementById('f-lessontime-row').style.display=''; // 수업시간은 항상 표시
+  document.getElementById('f-lessontime-row').style.display='';
+  const fih3=document.getElementById('f-inhouse');if(fih3)fih3.checked=!!(s.inhouse);
+  const fihr3=document.getElementById('f-inhouse-row');if(fihr3)fihr3.style.display=(s.type==='개인'||s.type==='출강')?'':'none'; // 수업시간은 항상 표시
   document.getElementById('modal-student').classList.add('open');
 };
 window.onStudentClassChange=function(){
@@ -1341,6 +1353,7 @@ window.saveStudent=async function(){
     teacher:cls?cls.teacher:document.getElementById('f-teacher').value,
     course:document.getElementById('f-course').value,
     payDate:parseInt(document.getElementById('f-paydate').value)||null,
+    inhouse:document.getElementById('f-inhouse')?.checked||false,
     payLink:cls&&cls.payLink?(cls.payLink):(document.getElementById('f-paylink').value),
     amount:parseInt(document.getElementById('f-amount').value)||0,
     // payLink: 아래에서 반 연동으로 처리start:document.getElementById('f-start').value,

@@ -40,6 +40,7 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafafa}
 .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
 .badge.학원{background:#d4f0e5;color:#085041}
+.badge.개인{background:#f3e8ff;color:#6b21a8}
 .badge.active{background:#d4f0e5;color:#085041}
 .badge.inactive{background:#ececec;color:#666}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
@@ -208,7 +209,7 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table><thead><tr>
-      <th style="width:80px">이름</th><th style="width:120px">전화번호</th>
+      <th style="width:80px">이름</th><th style="width:120px">전화번호</th><th style="width:70px">유형</th>
       <th>수강 내용</th><th style="width:70px">반</th>
       <th style="width:85px">결제일</th><th style="width:90px">수강료</th>
       <th style="width:100px">결제 링크</th><th style="width:60px">상태</th><th style="width:60px">수정</th>
@@ -246,6 +247,12 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     <select id="f-class" onchange="onClassChange()"><option value="">반 없음</option></select>
   </div></div>
   <div class="form-row full"><div><label>수강 내용</label><input type="text" id="f-course" placeholder="예: 초급 일본어 회화..."></div></div>
+  <div class="form-row full"><div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a1a1a">
+      <input type="checkbox" id="f-inhouse" style="width:16px;height:16px;accent-color:#0F6E56">
+      🏫 학원내 과외 (학원 앱에 표시)
+    </label>
+  </div></div>
   <div class="form-row">
     <div><label>결제일 (매월 며칠)</label><input type="number" id="f-paydate" min="1" max="31" placeholder="15"></div>
     <div><label>결제 금액 (원)</label><input type="number" id="f-amount" placeholder="160000"></div>
@@ -376,7 +383,7 @@ function setSynced(ok){
 onSnapshot(collection(db,'students'),snap=>{
   allStudents=snap.docs.map(d=>({...d.data(),id:d.id}));
   // ★ 학원 타입만
-  students=allStudents.filter(s=>s.type==='학원'||s.type==='전화'||s.type==='개인'||s.type==='출강');
+  students=allStudents.filter(s=>s.type==='학원'||(s.type==='개인'&&s.inhouse)||(s.type==='출강'&&s.inhouse));
   refreshAll();setSynced(true);
 });
 onSnapshot(collection(db,'schedules'),snap=>{
@@ -781,6 +788,7 @@ function renderStudents(){
     return `<tr style="${rowBg}cursor:pointer" ondblclick="editStudent('${s.id}')">
       <td style="font-weight:600">${s.name||''}</td>
       <td style="color:#666;font-size:12px">${s.phone||''}</td>
+      <td><span class="badge ${s.type}">${s.type==='개인'?'학원내과외':s.type}</span></td>
       <td>${s.course||''}</td>
       <td style="font-size:12px;color:#0F6E56;font-weight:600">${s.className||'-'}</td>
       <td>${s.payDate?`매월 ${s.payDate}일`+payBadge:'-'}</td>
@@ -808,6 +816,7 @@ window.openAddStudent=function(){
   ['f-name','f-phone','f-course','f-paydate','f-amount','f-start','f-paylink','f-memo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-status').value='active';
   document.getElementById('f-class').value='';
+  const fih=document.getElementById('f-inhouse');if(fih)fih.checked=false;
   document.getElementById('modal-student').classList.add('open');
 };
 
@@ -825,6 +834,7 @@ window.editStudent=function(id){
   document.getElementById('f-status').value=s.status||'active';
   document.getElementById('f-memo').value=s.memo||'';
   document.getElementById('f-class').value=s.classId||'';
+  const fih2=document.getElementById('f-inhouse');if(fih2)fih2.checked=!!(s.inhouse);
   document.getElementById('modal-student').classList.add('open');
 };
 
@@ -845,6 +855,7 @@ window.saveStudent=async function(){
     teacher:cls?cls.teacher:'',
     course:document.getElementById('f-course').value,
     payDate:parseInt(document.getElementById('f-paydate').value)||null,
+    inhouse:document.getElementById('f-inhouse')?.checked||false,
     amount:parseInt(document.getElementById('f-amount').value)||0,
     payLink:document.getElementById('f-paylink').value,
     start:document.getElementById('f-start').value,
