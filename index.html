@@ -2424,10 +2424,11 @@ window.printAttCert=function(sid, ym){
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="document.getElementById('cert-modal').remove()"
         style="padding:8px 18px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:#f5f5f5">취소</button>
-      <button onclick="window.generateCert('${sid}','${ym}',${JSON.stringify(attDays.map(x=>({ym:x.ym,day:x.day})))})"
+      <button onclick="window.generateCert('${sid}','${ym}',window._certAttDays)"
         style="padding:8px 20px;border:none;border-radius:8px;cursor:pointer;background:#0F6E56;color:#fff;font-weight:600">출력하기 →</button>
     </div>
   </div>`;
+  window._certAttDays=attDays.map(x=>({ym:x.ym,day:x.day}));
   document.body.appendChild(modal);
 };
 
