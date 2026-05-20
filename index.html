@@ -2309,8 +2309,32 @@ window.printAttCert=function(sid, ym){
   if(!s) return;
   const [y,m]=ym.split('-').map(Number);
   const dim=new Date(y,m,0).getDate();
-  const allDays=Array.from({length:dim},(_,i)=>i+1);
-  const attDays=allDays.filter(d=>getAtt(sid,ym,d)==='출석');
+
+  // ★ 누적 출석 날짜 수집 (마지막 결제완료 이후 전체)
+  let lastPaidYm2=null;
+  Object.keys(attendance).forEach(k=>{
+    if(k.startsWith('paid-'+sid+'-')&&attendance[k]?.value){
+      const pym=k.replace('paid-'+sid+'-','');
+      if(!lastPaidYm2||pym>lastPaidYm2)lastPaidYm2=pym;
+    }
+  });
+  const startYm2=lastPaidYm2?nextYm(lastPaidYm2):'2000-01';
+
+  // 시작월부터 현재 선택 월까지 모든 출석 날짜 수집
+  const attDays=[];
+  let curYm=startYm2;
+  while(curYm<=ym){
+    const [cy,cm]=curYm.split('-').map(Number);
+    const cdim=new Date(cy,cm,0).getDate();
+    const maxD=curYm===ym?dim:cdim;
+    for(let d=1;d<=maxD;d++){
+      if(getAtt(sid,curYm,d)==='출석'){
+        // {ym, day} 객체로 저장
+        attDays.push({ym:curYm,day:d});
+      }
+    }
+    curYm=nextYm(curYm);
+  }
 
   let defaultMin='';
   if(s.lessonTime&&s.lessonTimeEnd){
@@ -2325,13 +2349,16 @@ window.printAttCert=function(sid, ym){
   const today=new Date();
   const todayStr=today.getFullYear()+'년 '+(today.getMonth()+1)+'월 '+today.getDate()+'일';
 
-  const dateRows=attDays.map((d,i)=>`
+  const dateRows=attDays.map((item,i)=>{
+    const [iy,im]=item.ym.split('-').map(Number);
+    const d=item.day;
+    return `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-      <span style="width:50px;font-size:13px;font-weight:600;color:#0F6E56">${m}/${d}</span>
+      <span style="width:50px;font-size:13px;font-weight:600;color:#0F6E56">${im}/${d}</span>
       <input type="text" id="cert-min-${i}" value="${defaultMin||'20분'}"
         style="width:72px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
       <span style="font-size:11px;color:#888">수업시간</span>
-    </div>`).join('');
+    </div>`;}).join('');
 
   const modal=document.createElement('div');
   modal.id='cert-modal';
@@ -2397,7 +2424,7 @@ window.printAttCert=function(sid, ym){
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="document.getElementById('cert-modal').remove()"
         style="padding:8px 18px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:#f5f5f5">취소</button>
-      <button onclick="window.generateCert('${sid}','${ym}',${JSON.stringify(attDays)})"
+      <button onclick="window.generateCert('${sid}','${ym}',${JSON.stringify(attDays.map(x=>({ym:x.ym,day:x.day})))})"
         style="padding:8px 20px;border:none;border-radius:8px;cursor:pointer;background:#0F6E56;color:#fff;font-weight:600">출력하기 →</button>
     </div>
   </div>`;
@@ -2408,6 +2435,7 @@ window.generateCert=function(sid, ym, attDays){
   const s=students.find(x=>x.id===sid);
   if(!s) return;
   const [y,m]=ym.split('-').map(Number);
+  // attDays가 {ym,day} 객체 배열
   const total=attDays.length;
 
   const name=document.getElementById('cert-name').value;
@@ -2426,10 +2454,9 @@ window.generateCert=function(sid, ym, attDays){
   });
 
   // 날짜 표시 (월이 다른 경우 월/일 형식)
-  function fmtDay(d){
-    const dt=new Date(y,m-1,d);
-    const dm=dt.getMonth()+1;
-    return dm!==m?dm+'/'+d:String(d);
+  function fmtItem(item){
+    const [iy,im]=item.ym.split('-').map(Number);
+    return im+'/'+item.day;
   }
 
   const chunkSize=8;
@@ -2437,8 +2464,7 @@ window.generateCert=function(sid, ym, attDays){
   for(let i=0;i<attDays.length;i+=chunkSize){
     const chunk=attDays.slice(i,i+chunkSize);
     const chunkMins=mins.slice(i,i+chunkSize);
-    // ★ 빈 칸 없이 출석한 만큼만
-    tableRows+=`<tr class="date-row">${chunk.map(d=>'<td><b>'+fmtDay(d)+'</b></td>').join('')}</tr>`;
+    tableRows+=`<tr class="date-row">${chunk.map(item=>'<td><b>'+fmtItem(item)+'</b></td>').join('')}</tr>`;
     tableRows+=`<tr class="data-row">${chunkMins.map(mn=>'<td>'+mn+'<br>출석<br>'+teacher+'</td>').join('')}</tr>`;
   }
   if(!attDays.length) tableRows='<tr><td colspan="8" style="color:#aaa;padding:20px">출석 기록이 없어요</td></tr>';
