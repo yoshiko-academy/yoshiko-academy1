@@ -1359,7 +1359,7 @@ window.saveStudent=async function(){
     // payLink: 아래에서 반 연동으로 처리start:document.getElementById('f-start').value,
     status:document.getElementById('f-status').value,memo:document.getElementById('f-memo').value,
     classId:classId||null,className:cls?cls.name:null,
-    lessonCount:(type==='전화'||type==='개인')?(parseInt(document.getElementById('f-lessoncount').value)||null):null, // 출강은 횟수알림없음
+    lessonCount:(type==='전화'||type==='개인'||type==='출강')?(parseInt(document.getElementById('f-lessoncount').value)||null):null,
     lessonDays:[0,1,2,3,4,5,6].filter(i=>{const cb=document.getElementById('f-day-'+i);return cb&&cb.checked;}),
     lessonTime:document.getElementById('f-lesson-time').value||null,
     lessonDuration:parseInt(document.getElementById('f-lesson-duration').value)||60,
@@ -1638,21 +1638,26 @@ function calcCumulativeAtt(sid, upToYm, upToDay){
     }
   });
 
-  // 시작 월 결정 (결제완료 다음 달부터 or 전체)
-  let startYm = lastPaidYm ? nextYm(lastPaidYm) : '2000-01';
+  // 시작 월 결정 (결제완료 다음 달부터 or 최대 2년 전부터)
+  let startYm = lastPaidYm ? nextYm(lastPaidYm) : (()=>{
+    const d=new Date();d.setFullYear(d.getFullYear()-2);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  })();
 
-  // 시작월부터 현재까지 모든 출석 합산
+  // ★ attendance 전체 키 순회 - sid 포함된 출석 키만 카운트
+  // 키 형식: {sid}-{YYYY-MM}-{D} 예: st1234-2026-05-6
+  const prefix=sid+'-';
   let total = 0;
-  let cur = startYm;
-  while(cur <= upToYm){
-    const [y,m] = cur.split('-').map(Number);
-    const dim = new Date(y,m,0).getDate();
-    const maxDay = cur === upToYm ? upToDay : dim;
-    for(let d=1; d<=maxDay; d++){
-      if(getAtt(sid, cur, d)==='출석') total++;
-    }
-    cur = nextYm(cur);
-  }
+  Object.keys(attendance).forEach(k=>{
+    if(!k.startsWith(prefix))return;
+    const rest=k.slice(prefix.length); // YYYY-MM-D
+    // YYYY-MM-D에서 YYYY-MM 추출 (마지막 - 이전까지)
+    const lastDash=rest.lastIndexOf('-');
+    if(lastDash<0)return;
+    const kym=rest.slice(0,lastDash); // YYYY-MM
+    if(kym<startYm||kym>upToYm)return;
+    if(attendance[k]?.value==='출석'||attendance[k]==='출석')total++;
+  });
   return total;
 }
 
@@ -1742,7 +1747,7 @@ function getAtt(sid,ym,day){const v=attendance[`${sid}-${ym}-${day}`];return v?.
 // ★ 클릭으로 출석 토글
 window.toggleAtt=async function(sid,ym,day){
   const key=`${sid}-${ym}-${day}`;
-  const cur=attendance[key]||'';
+  const cur=attendance[key]?.value||attendance[key]||'';
   const s=students.find(x=>x.id===sid);
 
   if(cur==='출석'){
