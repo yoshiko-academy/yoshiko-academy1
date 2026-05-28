@@ -1647,14 +1647,19 @@ function calcCumulativeAtt(sid, upToYm, upToDay){
   // ★ attendance 전체 키 순회 - sid 포함된 출석 키만 카운트
   // 키 형식: {sid}-{YYYY-MM}-{D} 예: st1234-2026-05-6
   const prefix=sid+'-';
+  const attPrefix='att-'+sid+'-'; // 캘린더 연동 출석 키
   let total = 0;
   Object.keys(attendance).forEach(k=>{
+    // 일반 출석 키: {sid}-{YYYY-MM}-{day}
+    // 캘린더연동 출석 키: att-{sid}-{YYYY-MM}-{day} (이건 schedules에 있음)
     if(!k.startsWith(prefix))return;
-    const rest=k.slice(prefix.length); // YYYY-MM-D
-    // YYYY-MM-D에서 YYYY-MM 추출 (마지막 - 이전까지)
+    const rest=k.slice(prefix.length); // YYYY-MM-D 또는 다른 형식
+    // YYYY로 시작하는지 확인 (날짜 형식)
+    if(!/^\d{4}-/.test(rest))return;
     const lastDash=rest.lastIndexOf('-');
     if(lastDash<0)return;
     const kym=rest.slice(0,lastDash); // YYYY-MM
+    if(!/^\d{4}-\d{2}$/.test(kym))return;
     if(kym<startYm||kym>upToYm)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석')total++;
   });
@@ -2752,8 +2757,6 @@ document.getElementById('ph-month').value=YYYYMM;
 
         // ★ 선생님 드롭다운 숨기기 (다른 선생님 못 보게)
         if(sel) sel.style.display='none';
-        if(phSel) phSel.style.display='none';
-        // 결제알림 페이지의 선생님 필터도 숨기기 (renderPayment는 전체 표시하므로 학생 필터링)
       }
       window.tmShowTab('att');
     }
