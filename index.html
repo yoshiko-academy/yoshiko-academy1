@@ -2442,6 +2442,11 @@ window.printAttCert=function(sid, ym){
     </div>
 
     <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:3px">수강료 (입력 시 확인서에 표시)</label>
+      <input type="text" id="cert-fee" value="${s.amount?Number(s.amount).toLocaleString()+'원':''}" placeholder="예: 160,000원 (비우면 미표시)"
+        style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
+    </div>
+    <div style="margin-bottom:12px">
       <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:3px">수강시간 (수강확인서에 표시)</label>
       <input type="text" id="cert-weekly" value="주 2회 / ${defaultMin||'20분'}(회당)"
         style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
@@ -2498,6 +2503,7 @@ window.generateCert=function(sid, ym, attDays){
   const method=document.getElementById('cert-method').value;
   const teacher=document.getElementById('cert-teacher').value;
   const pStart=document.getElementById('cert-period-start').value;
+  const fee=document.getElementById('cert-fee')?.value||'';
   const pEnd=document.getElementById('cert-period-end').value;
   const weekly=document.getElementById('cert-weekly').value;
   const periodLabel=document.getElementById('cert-period-label').value;
@@ -2569,6 +2575,7 @@ h1{text-align:center;font-size:22pt;font-weight:700;letter-spacing:4px;margin:0 
   <tr><td>수강방식</td><td>: ${method}</td></tr>
   <tr><td>수강기간</td><td>: ${pStart} ~ ${pEnd} (총 ${total}회)</td></tr>
   <tr><td>수강시간</td><td>: ${weekly}</td></tr>
+  ${fee?`<tr><td>수강료</td><td>: ${fee}</td></tr>`:''}
 </table>
 
 <div class="section-title">[출석 확인 – ${periodLabel}]</div>
