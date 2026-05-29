@@ -2340,6 +2340,29 @@ window.printAttCert=function(sid, ym){
   const dim=new Date(y,m,0).getDate();
 
   // ★ 누적 출석 날짜 수집 - attendance 전체 키 스캔
+  // ★ 마지막 결제완료 이후 출석만 수집 (사이클 기준)
+  let lastPaidYm3=null;
+  let lastPaidDay3=0;
+  Object.keys(attendance).forEach(k=>{
+    if(!k.startsWith('paid-'+sid+'-'))return;
+    const data=attendance[k];
+    if(!(data?.value))return;
+    const pym=k.replace('paid-'+sid+'-','');
+    const paidAt=data?.paidAt||'';
+    if(!lastPaidYm3||pym>lastPaidYm3||(pym===lastPaidYm3&&paidAt>'')){
+      lastPaidYm3=pym;
+      // paidAt에서 날짜 추출 (형식: YYYY-MM-DD HH:MM)
+      if(paidAt){
+        const paidDate=paidAt.slice(0,10); // YYYY-MM-DD
+        const paidParts=paidDate.split('-');
+        if(paidParts.length===3){
+          lastPaidYm3=paidParts[0]+'-'+paidParts[1];
+          lastPaidDay3=parseInt(paidParts[2]);
+        }
+      }
+    }
+  });
+
   const attDays=[];
   const prefix2=sid+'-';
   Object.keys(attendance).sort().forEach(k=>{
@@ -2352,11 +2375,17 @@ window.printAttCert=function(sid, ym){
     const kday=parseInt(rest.slice(lastDash+1));
     if(!/^\d{4}-\d{2}$/.test(kym))return;
     if(kym>ym)return;
+    // 마지막 결제완료 이후만 포함 (결제완료 없으면 현재 월만)
+    if(lastPaidYm3){
+      if(kym<lastPaidYm3)return;
+      if(kym===lastPaidYm3&&kday<=lastPaidDay3)return;
+    } else {
+      if(kym<ym)return; // 결제완료 없으면 현재 선택 월만
+    }
     if(attendance[k]?.value==='출석'||attendance[k]==='출석'){
       attDays.push({ym:kym,day:kday});
     }
   });
-  // 날짜순 정렬
   attDays.sort((a,b)=>a.ym!==b.ym?a.ym.localeCompare(b.ym):a.day-b.day);
 
   let defaultMin='';
