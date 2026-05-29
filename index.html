@@ -2376,7 +2376,8 @@ window.printAttCert=function(sid, ym){
     const [iy,im]=item.ym.split('-').map(Number);
     const d=item.day;
     return `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px" id="cert-row-${i}">
+      <button onclick="this.closest('[id^=cert-row]').remove();window._certAttDays=window._certAttDays.filter(x=>!(x.ym==='${item.ym}'&&x.day===${item.day}))" style="width:22px;height:22px;border:none;background:#fde8e8;color:#c0392b;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0">×</button>
       <span style="width:50px;font-size:13px;font-weight:600;color:#0F6E56">${im}/${d}</span>
       <input type="text" id="cert-min-${i}" value="${defaultMin||'20분'}"
         style="width:72px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
@@ -2459,6 +2460,7 @@ window.generateCert=function(sid, ym, attDays){
   const s=students.find(x=>x.id===sid);
   if(!s) return;
   const [y,m]=ym.split('-').map(Number);
+
   // attDays가 {ym,day} 객체 배열
   const total=attDays.length;
 
