@@ -341,8 +341,8 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     </div>
   </div>
   <div class="form-row full" id="f-lessoncount-row" style="display:none"><div>
-    <label>결제 기준 수업 횟수 (N회 출석 시 결제 알림) — 전화·개인용</label>
-    <input type="number" id="f-lessoncount" min="1" max="99" placeholder="예: 4 (4회 출석마다 결제 알림)" oninput="window.autoFillPayLink()">
+    <label>월 수업 횟수 (결제주기 × 횟수 = 결제기준)</label>
+    <input type="number" id="f-lessoncount" min="1" max="31" placeholder="예: 8 (월 8회)" oninput="window.autoFillPayLink()">
   </div></div>
   <div class="form-row" id="f-lessontime-row">
     <div><label>수업 시작 시간</label><input type="time" id="f-lesson-time" value="10:00"></div>
@@ -1328,7 +1328,7 @@ window.editStudent=function(id){
   document.getElementById('f-amount').value=s.amount||'';document.getElementById('f-paylink').value=s.payLink||'';
   document.getElementById('f-start').value=s.start||'';document.getElementById('f-status').value=s.status||'active';
   document.getElementById('f-memo').value=s.memo||'';
-  const lc=document.getElementById('f-lessoncount');if(lc)lc.value=s.lessonCount||'';
+  const lc=document.getElementById('f-lessoncount');if(lc)lc.value=s.monthlyCount||'';
   document.getElementById('f-lesson-time').value=s.lessonTime||'10:00';
   [0,1,2,3,4,5,6].forEach(i=>{const cb=document.getElementById('f-day-'+i);if(cb)cb.checked=(s.lessonDays||[]).includes(i);});
   const fc=document.getElementById('f-class');if(fc)fc.value=s.classId||'';
@@ -1363,7 +1363,13 @@ window.saveStudent=async function(){
     // payLink: 아래에서 반 연동으로 처리start:document.getElementById('f-start').value,
     status:document.getElementById('f-status').value,memo:document.getElementById('f-memo').value,
     classId:classId||null,className:cls?cls.name:null,
-    lessonCount:(type==='전화'||type==='개인'||type==='출강')?(parseInt(document.getElementById('f-lessoncount').value)||null):null,
+    lessonCount:(()=>{
+      if(type!=='전화'&&type!=='개인'&&type!=='출강')return null;
+      const monthly=parseInt(document.getElementById('f-lessoncount').value)||0;
+      const cycle=parseInt(document.getElementById('f-paycycle').value)||1;
+      return monthly?monthly*cycle:null;
+    })(),
+    monthlyCount:(type==='전화'||type==='개인'||type==='출강')?(parseInt(document.getElementById('f-lessoncount').value)||null):null,
     lessonDays:[0,1,2,3,4,5,6].filter(i=>{const cb=document.getElementById('f-day-'+i);return cb&&cb.checked;}),
     lessonTime:document.getElementById('f-lesson-time').value||null,
     lessonDuration:parseInt(document.getElementById('f-lesson-duration').value)||60,
@@ -1688,7 +1694,7 @@ function renderAttendance(){
   const dim=new Date(y,m,0).getDate(); // ★ 해당 월의 실제 일수
   const allDays=Array.from({length:dim},(_,i)=>i+1);
   const sq=(document.getElementById('att-search')?.value||'').toLowerCase();
-  const rel=students.filter(s=>s.status==='active'&&(s.type==='개인'||s.type==='전화'||s.type==='출강')&&(!ft||s.teacher===ft)&&(!sq||(s.name||'').toLowerCase().includes(sq)));
+  const rel=students.filter(s=>s.status==='active'&&(s.type==='개인'||s.type==='전화'||s.type==='출강')&&(!ft||s.teacher===ft)&&(!sq||(s.name||'').toLowerCase().includes(sq))).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
   const el=document.getElementById('attendance-list');if(!el)return;
   if(!rel.length){el.innerHTML='<div class="card" style="text-align:center;color:#bbb;padding:40px">출결 관리 대상 학생이 없어요.<br><span style="font-size:12px">(개인 수업 · 전화 수업 학생만 표시돼요)</span></div>';return;}
   el.innerHTML=rel.map(s=>{
@@ -1702,7 +1708,14 @@ function renderAttendance(){
     // 사이클 내 현재 위치 (lc의 배수 도달 시 lc로 표시)
     const cycleProgress=lc?(totalAttForAlert%lc||lc):totalAttForAlert;
     // 결제 알림: lc의 배수 도달 시
-    const payAlert=lc&&totalAttForAlert>0&&totalAttForAlert%lc===0;
+    // 결제완료 횟수 계산
+    let paidCount=0;
+    Object.keys(attendance).forEach(k=>{
+      if(k.startsWith('paid-'+s.id+'-')&&attendance[k]?.value)paidCount++;
+    });
+    const cyclesDone=lc?Math.floor(totalAttForAlert/lc):0;
+    // 사이클 완료 횟수가 결제완료 횟수보다 많을 때만 알림
+    const payAlert=lc&&cyclesDone>paidCount;
     const payProgress=lc?`${cycleProgress}/${lc}회`:`${att}회`;
     const timeInfo=s.lessonTime?(s.lessonTime+(s.lessonTimeEnd?' ~ '+s.lessonTimeEnd:'')):'시간 미설정';
     const hasTime=!!(s.lessonTime&&s.lessonTimeEnd);
