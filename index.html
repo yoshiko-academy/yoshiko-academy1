@@ -1634,31 +1634,58 @@ window.copyTeacherLink=function(){
 window.showDeployGuide=function(){document.getElementById('modal-deploy').classList.add('open');};
 window.renderPayHistory=renderPayHistory;
 // ★ 누적 출석 계산 — 마지막 결제완료 이후부터 전체 합산
-function calcCumulativeAtt(sid, upToYm, upToDay){
-  // ★ 자동 사이클 리셋 방식 - 전체 누적 출석 수 반환
-  // startYm은 최대 3년 전부터 (충분히 넉넉하게)
-  const startYm=(()=>{
-    const d=new Date();d.setFullYear(d.getFullYear()-3);
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-  })();
-
-  // ★ attendance 전체 키 순회 - sid 포함된 출석 키만 카운트
-  // 키 형식: {sid}-{YYYY-MM}-{D} 예: st1234-2026-05-6
-  const prefix=sid+'-';
-  const attPrefix='att-'+sid+'-'; // 캘린더 연동 출석 키
-  let total = 0;
+// ★ 결제이력 메모에서 마지막 수업일 파싱 (예: "5/28" → {ym:'2026-05', day:28})
+function getLastMemoDate(sid){
+  const curYear=new Date().getFullYear();
+  let lastYm=null, lastDay=0;
+  // 모든 월의 phmemo 확인
   Object.keys(attendance).forEach(k=>{
-    // 일반 출석 키: {sid}-{YYYY-MM}-{day}
-    // 캘린더연동 출석 키: att-{sid}-{YYYY-MM}-{day} (이건 schedules에 있음)
+    if(!k.startsWith('phmemo-'+sid+'-'))return;
+    const val=(attendance[k]?.value||attendance[k]||'').toString().trim();
+    if(!val)return;
+    // M/D 또는 MM/DD 형식 파싱
+    const match=val.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if(!match)return;
+    const mo=parseInt(match[1]), dy=parseInt(match[2]);
+    if(mo<1||mo>12||dy<1||dy>31)return;
+    const ym=curYear+'-'+String(mo).padStart(2,'0');
+    if(!lastYm||ym>lastYm||(ym===lastYm&&dy>lastDay)){
+      lastYm=ym; lastDay=dy;
+    }
+  });
+  return lastYm?{ym:lastYm,day:lastDay}:null;
+}
+
+function calcCumulativeAtt(sid, upToYm, upToDay){
+  // ★ 메모 날짜 or 결제완료 날짜 이후부터 카운트
+  const memoDate=getLastMemoDate(sid);
+  let startYm, startDay=0;
+  if(memoDate){
+    // 메모 날짜 이후부터
+    startYm=memoDate.ym;
+    startDay=memoDate.day;
+  } else {
+    // 메모 없으면 3년 전부터
+    const d=new Date();d.setFullYear(d.getFullYear()-3);
+    startYm=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    startDay=0;
+  }
+
+  const prefix=sid+'-';
+  let total=0;
+  Object.keys(attendance).forEach(k=>{
     if(!k.startsWith(prefix))return;
-    const rest=k.slice(prefix.length); // YYYY-MM-D 또는 다른 형식
-    // YYYY로 시작하는지 확인 (날짜 형식)
+    const rest=k.slice(prefix.length);
     if(!/^\d{4}-/.test(rest))return;
     const lastDash=rest.lastIndexOf('-');
     if(lastDash<0)return;
-    const kym=rest.slice(0,lastDash); // YYYY-MM
+    const kym=rest.slice(0,lastDash);
+    const kday=parseInt(rest.slice(lastDash+1));
     if(!/^\d{4}-\d{2}$/.test(kym))return;
-    if(kym<startYm||kym>upToYm)return;
+    if(kym>upToYm)return;
+    // 메모 날짜 이후만 카운트
+    if(kym<startYm)return;
+    if(kym===startYm&&kday<=startDay)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석')total++;
   });
   return total;
@@ -1688,13 +1715,9 @@ function renderAttendance(){
     const lc=effectiveLc||null;
     const totalAttForAlert=calcCumulativeAtt(s.id, fm, dim);
     // ★ 결제완료 횟수 계산
-    let paidCount=0;
-    Object.keys(attendance).forEach(k=>{
-      if(k.startsWith('paid-'+s.id+'-')&&attendance[k]?.value)paidCount++;
-    });
-    // 사이클 완료 횟수 vs 결제완료 횟수 비교
+    // 메모 날짜 이후 카운트 기준으로 사이클 완료 체크
     const cyclesDone=lc?Math.floor(totalAttForAlert/lc):0;
-    const payAlert=lc&&cyclesDone>paidCount;
+    const payAlert=lc&&cyclesDone>=1&&totalAttForAlert>=lc;
     // 사이클 내 현재 순서
     const cycleProgress=lc?(totalAttForAlert%lc||lc):0;
     const payProgress=lc?`${cycleProgress}/${lc}회 (누적 ${totalAttForAlert}회)`:`${att}회`;
@@ -2346,28 +2369,30 @@ window.printAttCert=function(sid, ym){
   const dim=new Date(y,m,0).getDate();
 
   // ★ 누적 출석 날짜 수집 - attendance 전체 키 스캔
-  // ★ 마지막 결제완료 이후 출석만 수집 (사이클 기준)
-  let lastPaidYm3=null;
-  let lastPaidDay3=0;
-  Object.keys(attendance).forEach(k=>{
-    if(!k.startsWith('paid-'+sid+'-'))return;
-    const data=attendance[k];
-    if(!(data?.value))return;
-    const pym=k.replace('paid-'+sid+'-','');
-    const paidAt=data?.paidAt||'';
-    if(!lastPaidYm3||pym>lastPaidYm3||(pym===lastPaidYm3&&paidAt>'')){
-      lastPaidYm3=pym;
-      // paidAt에서 날짜 추출 (형식: YYYY-MM-DD HH:MM)
+  // ★ 메모 날짜 기준으로 시작일 결정
+  const memoDateCert=getLastMemoDate(sid);
+  let lastPaidYm3=memoDateCert?memoDateCert.ym:null;
+  let lastPaidDay3=memoDateCert?memoDateCert.day:0;
+  // 메모 없으면 결제완료 날짜 확인
+  if(!lastPaidYm3){
+    Object.keys(attendance).forEach(k=>{
+      if(!k.startsWith('paid-'+sid+'-'))return;
+      const data=attendance[k];
+      if(!(data?.value))return;
+      const paidAt=data?.paidAt||'';
       if(paidAt){
-        const paidDate=paidAt.slice(0,10); // YYYY-MM-DD
+        const paidDate=paidAt.slice(0,10);
         const paidParts=paidDate.split('-');
         if(paidParts.length===3){
-          lastPaidYm3=paidParts[0]+'-'+paidParts[1];
-          lastPaidDay3=parseInt(paidParts[2]);
+          const pym=paidParts[0]+'-'+paidParts[1];
+          const pday=parseInt(paidParts[2]);
+          if(!lastPaidYm3||pym>lastPaidYm3||(pym===lastPaidYm3&&pday>lastPaidDay3)){
+            lastPaidYm3=pym; lastPaidDay3=pday;
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   const attDays=[];
   const prefix2=sid+'-';
