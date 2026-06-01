@@ -1439,15 +1439,13 @@ function renderPayment(){
     if(s.status!=='active'||(s.type!=='전화'&&s.type!=='개인'&&s.type!=='출강'))return false;
     if(attendance[`paid-${s.id}-${fm}`]?.value)return false;
     if(!payMatchFilter(s))return false;
-    // 결제 기준 횟수: 직접 입력 lessonCount 우선, 없으면 payCycle × monthlyCount 자동 계산
     const effectiveCount=(s.lessonCount)||((s.payCycle||1)*(s.monthlyCount||0))||0;
     if(!effectiveCount)return false;
-    // ★ 누적 출석 (마지막 결제완료 이후 전체 합산)
     const totalAtt=calcCumulativeAtt(s.id, fm, dim);
     s._effectiveCount=effectiveCount;
     s._totalAtt=totalAtt;
     return totalAtt>=effectiveCount;
-  });
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   let html='';
 
@@ -1587,17 +1585,25 @@ function renderPayHistory(){
         <th style="width:90px">수강료</th>
         <th>결제완료 일시</th><th>메모</th><th style="width:60px">취소</th>
       </tr></thead><tbody>
-        ${paidList.map(s=>`<tr style="background:#f0fdf8">
+        ${paidList.map(s=>{
+          const lc2=s.lessonCount||null;
+          const totalAtt2=lc2?calcCumulativeAtt(s.id,fm,new Date(parseInt(fm.slice(0,4)),parseInt(fm.slice(5,7)),0).getDate()):0;
+          const cyclePos2=lc2?(totalAtt2%lc2||lc2):0;
+          const attLabel=lc2?`${cyclePos2}/${lc2}회`:'-';
+          const memo2=(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString();
+          const memoDate2=memo2.match(/^\d{1,2}\/\d{1,2}$/)?memo2+'결제':'';
+          return `<tr style="background:#f0fdf8">
           <td style="font-weight:600">${s.name}</td>
           <td><span class="badge ${s.type}" style="font-size:10px">${s.type}</span></td>
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
           <td style="font-weight:600;color:#0F6E56">${Number(s.amount||0).toLocaleString()}원</td>
           <td style="font-size:12px;color:#555">${s.paidAt||'-'}</td>
-          <td><input type="text" placeholder="메모..." value="${(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString().replace(/"/g,'&quot;')}"
+          <td style="font-size:12px;color:#0F6E56;font-weight:600">${attLabel}${memoDate2?' · '+memoDate2:''}</td>
+          <td><input type="text" placeholder="메모..." value="${memo2.replace(/"/g,'&quot;')}"
             onchange="window.savePhMemo('${s.id}','${fm}',this.value)"
             style="width:100%;padding:3px 6px;border:1px solid #e0e0e0;border-radius:5px;font-size:11px"></td>
           <td><button class="btn sm danger" onclick="window.markPaid('${s.id}','${fm}',false)">취소</button></td>
-        </tr>`).join('')}
+        </tr>`;}).join('')}
       </tbody></table>
     </div>`;
   }
@@ -1609,14 +1615,24 @@ function renderPayHistory(){
       <table><thead><tr>
         <th style="width:80px">이름</th><th style="width:60px">유형</th>
         ${window.TEACHER_MODE?'':'<th style="width:100px">선생님</th>'}
-        <th style="width:80px">결제일</th>
+        <th style="width:80px">결제일/횟수</th>
         <th style="width:90px">수강료</th><th>결제완료 처리</th>
       </tr></thead><tbody>
         ${unpaidList.map(s=>`<tr style="background:#fff5f5">
           <td style="font-weight:600">${s.name}</td>
           <td><span class="badge ${s.type}" style="font-size:10px">${s.type}</span></td>
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
-          <td style="color:#c0392b;font-weight:600">${s.payDate?'매월 '+s.payDate+'일':(s.lessonCount?s.lessonCount+'회 기준':'-')}</td>
+          <td style="color:#c0392b;font-weight:600">${(()=>{
+            if(s.payDate)return '매월 '+s.payDate+'일';
+            if(s.lessonCount){
+              const t=calcCumulativeAtt(s.id,fm,new Date(parseInt(fm.slice(0,4)),parseInt(fm.slice(5,7)),0).getDate());
+              const cp=t%s.lessonCount||s.lessonCount;
+              const memo3=(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString();
+              const md3=memo3.match(/^\d{1,2}\/\d{1,2}$/)?memo3+' 결제':'';
+              return cp+'/'+s.lessonCount+'회'+(md3?' · '+md3:'');
+            }
+            return '-';
+          })()}</td>
           <td>${Number(s.amount||0).toLocaleString()}원</td>
           <td><button class="btn sm primary" onclick="window.markPaid('${s.id}','${fm}',true)">✅ 결제완료</button></td>
         </tr>`).join('')}
