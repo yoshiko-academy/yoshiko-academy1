@@ -342,7 +342,7 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
   </div>
   <div class="form-row full" id="f-lessoncount-row" style="display:none"><div>
     <label>결제 기준 수업 횟수 (N회 출석 시 결제 알림) — 전화·개인용</label>
-    <input type="number" id="f-lessoncount" min="1" max="99" placeholder="예: 4 (4회 출석마다 결제 알림)">
+    <input type="number" id="f-lessoncount" min="1" max="99" placeholder="예: 4 (4회 출석마다 결제 알림)" oninput="window.autoFillPayLink()">
   </div></div>
   <div class="form-row" id="f-lessontime-row">
     <div><label>수업 시작 시간</label><input type="time" id="f-lesson-time" value="10:00"></div>
@@ -372,7 +372,7 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     </div>
   </div>
   <div class="form-row">
-    <div><label>월 수업 횟수</label><input type="number" id="f-monthly-count" min="1" max="31" placeholder="예: 8 (월 8회)" oninput="window.autoFillPayLink()"></div>
+
     <div></div>
   </div>
   <div class="form-row full"><div><label>결제 링크 (선택)</label><input type="text" id="f-paylink" placeholder="https://toss.me/..."></div></div>
@@ -1267,14 +1267,11 @@ window.onStudentTypeChange=function(){
 window.autoFillPayLink=function(){
   const type=document.getElementById('f-type')?.value||'';
   const classId=document.getElementById('f-class')?.value||'';
-  // 반이 선택돼 있으면 반 링크 우선 (건드리지 않음)
   if(classId)return;
-  // 학원은 반에서 연동하므로 스킵
   if(type==='학원')return;
   const cycle=parseInt(document.getElementById('f-paycycle')?.value)||1;
-  const monthly=parseInt(document.getElementById('f-monthly-count')?.value)||0;
-  // monthly 없으면 아직 미입력 — 건드리지 않음
-  if(!monthly)return;
+  const lessonCount=parseInt(document.getElementById('f-lessoncount')?.value)||0;
+  if(!lessonCount)return;
   const AUTO_LINKS={
     m3:'https://smartstore.naver.com/yoshiko/products/6469664540',
     w1:'https://smartstore.naver.com/yoshiko/products/5665122687',
@@ -1285,10 +1282,10 @@ window.autoFillPayLink=function(){
   };
   let link='';
   if(cycle>=3){link=AUTO_LINKS.m3;}
-  else if(monthly<=4){link=AUTO_LINKS.w1;}
-  else if(monthly<=8){link=AUTO_LINKS.w2;}
-  else if(monthly<=12){link=AUTO_LINKS.w3;}
-  else if(monthly<=16){link=AUTO_LINKS.w4;}
+  else if(lessonCount<=4){link=AUTO_LINKS.w1;}
+  else if(lessonCount<=8){link=AUTO_LINKS.w2;}
+  else if(lessonCount<=12){link=AUTO_LINKS.w3;}
+  else if(lessonCount<=16){link=AUTO_LINKS.w4;}
   else{link=AUTO_LINKS.w5;}
   const pl=document.getElementById('f-paylink');
   if(pl)pl.value=link;
@@ -1296,7 +1293,7 @@ window.autoFillPayLink=function(){
 window.openAddStudent=function(){
   editingStudentId=null;populateClassSelects();
   document.getElementById('modal-student-title').textContent='학생 추가';
-  ['f-name','f-phone','f-course','f-paydate','f-amount','f-start','f-paylink','f-memo','f-lessoncount','f-monthly-count'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-name','f-phone','f-course','f-paydate','f-amount','f-start','f-paylink','f-memo','f-lessoncount'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-paycycle').value='1';
   document.getElementById('f-paytype').value='선불';
   document.getElementById('f-lesson-duration').value='60';
@@ -1319,7 +1316,7 @@ window.editStudent=function(id){
   document.getElementById('f-course').value=s.course||'';document.getElementById('f-paydate').value=s.payDate||'';
   document.getElementById('f-paycycle').value=s.payCycle||'1';
   document.getElementById('f-paytype').value=s.payType||'선불';
-  document.getElementById('f-monthly-count').value=s.monthlyCount||'';
+
   document.getElementById('f-lesson-duration').value=s.lessonDuration||'60';
   document.getElementById('f-amount').value=s.amount||'';document.getElementById('f-paylink').value=s.payLink||'';
   document.getElementById('f-start').value=s.start||'';document.getElementById('f-status').value=s.status||'active';
@@ -1364,7 +1361,7 @@ window.saveStudent=async function(){
     lessonTime:document.getElementById('f-lesson-time').value||null,
     lessonDuration:parseInt(document.getElementById('f-lesson-duration').value)||60,
     lessonTimeEnd:document.getElementById('f-lesson-time').value?addMinutesToTime(document.getElementById('f-lesson-time').value,parseInt(document.getElementById('f-lesson-duration').value)||60):null,
-    monthlyCount:parseInt(document.getElementById('f-monthly-count').value)||null,
+    monthlyCount:null,
     payCycle:parseInt(document.getElementById('f-paycycle').value)||1,
     payType:document.getElementById('f-paytype').value||'선불',
   };
