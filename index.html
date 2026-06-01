@@ -1657,20 +1657,9 @@ function getLastMemoDate(sid){
 }
 
 function calcCumulativeAtt(sid, upToYm, upToDay){
-  // ★ 메모 날짜 or 결제완료 날짜 이후부터 카운트
-  const memoDate=getLastMemoDate(sid);
-  let startYm, startDay=0;
-  if(memoDate){
-    // 메모 날짜 이후부터
-    startYm=memoDate.ym;
-    startDay=memoDate.day;
-  } else {
-    // 메모 없으면 3년 전부터
-    const d=new Date();d.setFullYear(d.getFullYear()-3);
-    startYm=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    startDay=0;
-  }
-
+  // ★ 전체 출석 수 카운트 (3년 전부터)
+  const d3=new Date();d3.setFullYear(d3.getFullYear()-3);
+  const startYm=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0');
   const prefix=sid+'-';
   let total=0;
   Object.keys(attendance).forEach(k=>{
@@ -1680,12 +1669,8 @@ function calcCumulativeAtt(sid, upToYm, upToDay){
     const lastDash=rest.lastIndexOf('-');
     if(lastDash<0)return;
     const kym=rest.slice(0,lastDash);
-    const kday=parseInt(rest.slice(lastDash+1));
     if(!/^\d{4}-\d{2}$/.test(kym))return;
-    if(kym>upToYm)return;
-    // 메모 날짜 이후만 카운트
-    if(kym<startYm)return;
-    if(kym===startYm&&kday<=startDay)return;
+    if(kym<startYm||kym>upToYm)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석')total++;
   });
   return total;
@@ -1711,16 +1696,14 @@ function renderAttendance(){
     const memoKey=`memo-${s.id}-${fm}`;
     const memoVal=attendance[memoKey]?.value||attendance[memoKey]||'';
     // ★ 누적 출석 계산 (마지막 결제완료 이후 전체 합산)
-    const effectiveLc=(s.lessonCount)||((s.payCycle||1)*(s.monthlyCount||0))||0;
-    const lc=effectiveLc||null;
+    const lc=s.lessonCount||null;
+    // ★ 전체 누적 출석 - 사이클 반복
     const totalAttForAlert=calcCumulativeAtt(s.id, fm, dim);
-    // ★ 결제완료 횟수 계산
-    // 메모 날짜 이후 카운트 기준으로 사이클 완료 체크
-    const cyclesDone=lc?Math.floor(totalAttForAlert/lc):0;
-    const payAlert=lc&&cyclesDone>=1&&totalAttForAlert>=lc;
-    // 사이클 내 현재 순서
-    const cycleProgress=lc?(totalAttForAlert%lc||lc):0;
-    const payProgress=lc?`${cycleProgress}/${lc}회 (누적 ${totalAttForAlert}회)`:`${att}회`;
+    // 사이클 내 현재 위치 (lc의 배수 도달 시 lc로 표시)
+    const cycleProgress=lc?(totalAttForAlert%lc||lc):totalAttForAlert;
+    // 결제 알림: lc의 배수 도달 시
+    const payAlert=lc&&totalAttForAlert>0&&totalAttForAlert%lc===0;
+    const payProgress=lc?`${cycleProgress}/${lc}회`:`${att}회`;
     const timeInfo=s.lessonTime?(s.lessonTime+(s.lessonTimeEnd?' ~ '+s.lessonTimeEnd:'')):'시간 미설정';
     const hasTime=!!(s.lessonTime&&s.lessonTimeEnd);
     return `<div class="card" style="${payAlert?'border-color:#f39c12;':''}">
@@ -1758,8 +1741,7 @@ function renderAttendance(){
           const schedKey=`att-${s.id}-${fm}-${d}`;
           const synced=a&&schedules.some(x=>x.id===schedKey);
           const isSun=dow===0,isSat=dow===6;
-          // ★ 누적 사이클 내 순서 계산 (결제완료 무관)
-          // 이 날짜까지의 누적 출석 수 계산
+          // ★ 이 날짜까지의 누적 출석 수로 사이클 위치 계산
           const attUpToToday=Object.keys(attendance).filter(k=>{
             if(!k.startsWith(s.id+'-'))return false;
             const rest=k.slice(s.id.length+1);
@@ -1773,9 +1755,8 @@ function renderAttendance(){
             if(kym===fm&&kday>d)return false;
             return attendance[k]?.value==='출석'||attendance[k]==='출석';
           }).length;
-          // 사이클 내 순서 (1부터 시작)
-          const cyclePos=lc?(attUpToToday%lc||lc):0;
-          const isLastInCycle=a&&lc&&cyclePos===lc;
+          // lc의 배수면 사이클 마지막 → 빨간색
+          const isLastInCycle=a&&lc&&attUpToToday>0&&attUpToToday%lc===0;
           const bg=a?(isLastInCycle?'#e74c3c':'#0F6E56'):'#f5f5f5';
           const col=a?'#fff':(isSun?'#c0392b':isSat?'#2980b9':'#999');
           const border=a?(isLastInCycle?'#e74c3c':'#0F6E56'):(isSun?'#fcc':isSat?'#bde':'#e0e0e0');
