@@ -1252,6 +1252,13 @@ function renderStudents(){
   if(document.getElementById('s-chulgang'))document.getElementById('s-chulgang').textContent=a.filter(s=>s.type==='출강'||s.type==='개인').length;
 }
 window.copyText=function(text,msg){navigator.clipboard.writeText(text).then(()=>toast(msg||'복사됐어요!'));};
+// ── 문자(SMS) 보내기 — 번호·메시지 자동 채워서 문자앱 열기 ──
+window.sendSMS=function(phone,text){
+  const p=(phone||'').replace(/[^0-9]/g,'');
+  if(!p){toast('전화번호가 없어요. 학생 정보에 번호를 입력해주세요.');return;}
+  const url='sms:'+p+'?body='+encodeURIComponent(text||'');
+  window.location.href=url;
+};
 window.onStudentTypeChange=function(){
   const t=document.getElementById('f-type').value;
   const isPersonal=t==='전화'||t==='개인'||t==='출강';
@@ -1457,6 +1464,7 @@ function renderPayment(){
             ${s.payLink?`<button class="copy-btn" style="margin-top:5px" onclick="copyText('${s.payLink}','링크 복사됐어요!')">💳 결제 링크</button>`:''}
           </div>
           <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="copy-btn" style="background:#fde9d0;color:#a05a00;border-color:#f0b56a;font-weight:600" onclick="window.sendSMS('${s.phone||''}',\`${safe}\`)">📩 문자 보내기</button>
             <button class="copy-btn" onclick="copyText(\`${safe}\`,'문자 복사됐어요!')">문자 복사</button>
             <button class="copy-btn" style="background:#d4f0e5;color:#085041;border-color:#81c995;font-weight:600" onclick="window.markPaid('${s.id}','${fm}',true)">✅ 결제완료</button>
           </div>
@@ -1487,6 +1495,7 @@ function renderPayment(){
               ${s.payLink?`<button class="copy-btn" style="margin-top:5px" onclick="copyText('${s.payLink}','링크 복사됐어요!')">💳 결제 링크</button>`:''}
             </div>
             <div style="display:flex;flex-direction:column;gap:4px">
+              <button class="copy-btn" style="background:#fde9d0;color:#a05a00;border-color:#f0b56a;font-weight:600" onclick="window.sendSMS('${s.phone||''}',\`${safe}\`)">📩 문자 보내기</button>
               <button class="copy-btn" onclick="copyText(\`${safe}\`,'문자 복사됐어요!')">문자 복사</button>
               <button class="copy-btn" style="background:#d4f0e5;color:#085041;border-color:#81c995;font-weight:600" onclick="window.markPaid('${s.id}','${fm}',true)">✅ 결제완료</button>
             </div>
