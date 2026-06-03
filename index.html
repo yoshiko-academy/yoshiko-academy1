@@ -341,8 +341,8 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     </div>
   </div>
   <div class="form-row full" id="f-lessoncount-row" style="display:none"><div>
-    <label>월 수업 횟수 (결제주기 × 횟수 = 결제기준)</label>
-    <input type="number" id="f-lessoncount" min="1" max="31" placeholder="예: 8 (월 8회)" oninput="window.autoFillPayLink()">
+    <label>결제 기준 수업 횟수 (N회 출석 시 결제 알림) — 전화·개인용</label>
+    <input type="number" id="f-lessoncount" min="1" max="99" placeholder="예: 4 (4회 출석마다 결제 알림)" oninput="window.autoFillPayLink()">
   </div></div>
   <div class="form-row" id="f-lessontime-row">
     <div><label>수업 시작 시간</label><input type="time" id="f-lesson-time" value="10:00"></div>
@@ -1328,7 +1328,7 @@ window.editStudent=function(id){
   document.getElementById('f-amount').value=s.amount||'';document.getElementById('f-paylink').value=s.payLink||'';
   document.getElementById('f-start').value=s.start||'';document.getElementById('f-status').value=s.status||'active';
   document.getElementById('f-memo').value=s.memo||'';
-  const lc=document.getElementById('f-lessoncount');if(lc)lc.value=s.monthlyCount||'';
+  const lc=document.getElementById('f-lessoncount');if(lc)lc.value=s.lessonCount||'';
   document.getElementById('f-lesson-time').value=s.lessonTime||'10:00';
   [0,1,2,3,4,5,6].forEach(i=>{const cb=document.getElementById('f-day-'+i);if(cb)cb.checked=(s.lessonDays||[]).includes(i);});
   const fc=document.getElementById('f-class');if(fc)fc.value=s.classId||'';
@@ -1363,13 +1363,7 @@ window.saveStudent=async function(){
     // payLink: 아래에서 반 연동으로 처리start:document.getElementById('f-start').value,
     status:document.getElementById('f-status').value,memo:document.getElementById('f-memo').value,
     classId:classId||null,className:cls?cls.name:null,
-    lessonCount:(()=>{
-      if(type!=='전화'&&type!=='개인'&&type!=='출강')return null;
-      const monthly=parseInt(document.getElementById('f-lessoncount').value)||0;
-      const cycle=parseInt(document.getElementById('f-paycycle').value)||1;
-      return monthly?monthly*cycle:null;
-    })(),
-    monthlyCount:(type==='전화'||type==='개인'||type==='출강')?(parseInt(document.getElementById('f-lessoncount').value)||null):null,
+    lessonCount:(type==='전화'||type==='개인'||type==='출강')?(parseInt(document.getElementById('f-lessoncount').value)||null):null,
     lessonDays:[0,1,2,3,4,5,6].filter(i=>{const cb=document.getElementById('f-day-'+i);return cb&&cb.checked;}),
     lessonTime:document.getElementById('f-lesson-time').value||null,
     lessonDuration:parseInt(document.getElementById('f-lesson-duration').value)||60,
@@ -1439,13 +1433,15 @@ function renderPayment(){
     if(s.status!=='active'||(s.type!=='전화'&&s.type!=='개인'&&s.type!=='출강'))return false;
     if(attendance[`paid-${s.id}-${fm}`]?.value)return false;
     if(!payMatchFilter(s))return false;
+    // 결제 기준 횟수: 직접 입력 lessonCount 우선, 없으면 payCycle × monthlyCount 자동 계산
     const effectiveCount=(s.lessonCount)||((s.payCycle||1)*(s.monthlyCount||0))||0;
     if(!effectiveCount)return false;
+    // ★ 누적 출석 (마지막 결제완료 이후 전체 합산)
     const totalAtt=calcCumulativeAtt(s.id, fm, dim);
     s._effectiveCount=effectiveCount;
     s._totalAtt=totalAtt;
     return totalAtt>=effectiveCount;
-  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  });
 
   let html='';
 
@@ -1585,25 +1581,17 @@ function renderPayHistory(){
         <th style="width:90px">수강료</th>
         <th>결제완료 일시</th><th>메모</th><th style="width:60px">취소</th>
       </tr></thead><tbody>
-        ${paidList.map(s=>{
-          const lc2=s.lessonCount||null;
-          const totalAtt2=lc2?calcCumulativeAtt(s.id,fm,new Date(parseInt(fm.slice(0,4)),parseInt(fm.slice(5,7)),0).getDate()):0;
-          const cyclePos2=lc2?(totalAtt2%lc2||lc2):0;
-          const attLabel=lc2?`${cyclePos2}/${lc2}회`:'-';
-          const memo2=(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString();
-          const memoDate2=memo2.match(/^\d{1,2}\/\d{1,2}$/)?memo2+'결제':'';
-          return `<tr style="background:#f0fdf8">
+        ${paidList.map(s=>`<tr style="background:#f0fdf8">
           <td style="font-weight:600">${s.name}</td>
           <td><span class="badge ${s.type}" style="font-size:10px">${s.type}</span></td>
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
           <td style="font-weight:600;color:#0F6E56">${Number(s.amount||0).toLocaleString()}원</td>
           <td style="font-size:12px;color:#555">${s.paidAt||'-'}</td>
-          <td style="font-size:12px;color:#0F6E56;font-weight:600">${attLabel}${memoDate2?' · '+memoDate2:''}</td>
-          <td><input type="text" placeholder="메모..." value="${memo2.replace(/"/g,'&quot;')}"
+          <td><input type="text" placeholder="메모..." value="${(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString().replace(/"/g,'&quot;')}"
             onchange="window.savePhMemo('${s.id}','${fm}',this.value)"
             style="width:100%;padding:3px 6px;border:1px solid #e0e0e0;border-radius:5px;font-size:11px"></td>
           <td><button class="btn sm danger" onclick="window.markPaid('${s.id}','${fm}',false)">취소</button></td>
-        </tr>`;}).join('')}
+        </tr>`).join('')}
       </tbody></table>
     </div>`;
   }
@@ -1615,24 +1603,14 @@ function renderPayHistory(){
       <table><thead><tr>
         <th style="width:80px">이름</th><th style="width:60px">유형</th>
         ${window.TEACHER_MODE?'':'<th style="width:100px">선생님</th>'}
-        <th style="width:80px">결제일/횟수</th>
+        <th style="width:80px">결제일</th>
         <th style="width:90px">수강료</th><th>결제완료 처리</th>
       </tr></thead><tbody>
         ${unpaidList.map(s=>`<tr style="background:#fff5f5">
           <td style="font-weight:600">${s.name}</td>
           <td><span class="badge ${s.type}" style="font-size:10px">${s.type}</span></td>
           ${window.TEACHER_MODE?'':'<td style="font-size:12px">'+s.teacher+'</td>'}
-          <td style="color:#c0392b;font-weight:600">${(()=>{
-            if(s.payDate)return '매월 '+s.payDate+'일';
-            if(s.lessonCount){
-              const t=calcCumulativeAtt(s.id,fm,new Date(parseInt(fm.slice(0,4)),parseInt(fm.slice(5,7)),0).getDate());
-              const cp=t%s.lessonCount||s.lessonCount;
-              const memo3=(attendance['phmemo-'+s.id+'-'+fm]?.value||attendance['phmemo-'+s.id+'-'+fm]||'').toString();
-              const md3=memo3.match(/^\d{1,2}\/\d{1,2}$/)?memo3+' 결제':'';
-              return cp+'/'+s.lessonCount+'회'+(md3?' · '+md3:'');
-            }
-            return '-';
-          })()}</td>
+          <td style="color:#c0392b;font-weight:600">${s.payDate?'매월 '+s.payDate+'일':(s.lessonCount?s.lessonCount+'회 기준':'-')}</td>
           <td>${Number(s.amount||0).toLocaleString()}원</td>
           <td><button class="btn sm primary" onclick="window.markPaid('${s.id}','${fm}',true)">✅ 결제완료</button></td>
         </tr>`).join('')}
@@ -1656,41 +1634,29 @@ window.copyTeacherLink=function(){
 window.showDeployGuide=function(){document.getElementById('modal-deploy').classList.add('open');};
 window.renderPayHistory=renderPayHistory;
 // ★ 누적 출석 계산 — 마지막 결제완료 이후부터 전체 합산
-// ★ 결제이력 메모에서 마지막 수업일 파싱 (예: "5/28" → {ym:'2026-05', day:28})
-function getLastMemoDate(sid){
-  const curYear=new Date().getFullYear();
-  let lastYm=null, lastDay=0;
-  // 모든 월의 phmemo 확인
-  Object.keys(attendance).forEach(k=>{
-    if(!k.startsWith('phmemo-'+sid+'-'))return;
-    const val=(attendance[k]?.value||attendance[k]||'').toString().trim();
-    if(!val)return;
-    // M/D 또는 MM/DD 형식 파싱
-    const match=val.match(/^(\d{1,2})\/(\d{1,2})$/);
-    if(!match)return;
-    const mo=parseInt(match[1]), dy=parseInt(match[2]);
-    if(mo<1||mo>12||dy<1||dy>31)return;
-    const ym=curYear+'-'+String(mo).padStart(2,'0');
-    if(!lastYm||ym>lastYm||(ym===lastYm&&dy>lastDay)){
-      lastYm=ym; lastDay=dy;
-    }
-  });
-  return lastYm?{ym:lastYm,day:lastDay}:null;
-}
-
 function calcCumulativeAtt(sid, upToYm, upToDay){
-  // ★ 전체 출석 수 카운트 (3년 전부터)
-  const d3=new Date();d3.setFullYear(d3.getFullYear()-3);
-  const startYm=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0');
+  // ★ 자동 사이클 리셋 방식 - 전체 누적 출석 수 반환
+  // startYm은 최대 3년 전부터 (충분히 넉넉하게)
+  const startYm=(()=>{
+    const d=new Date();d.setFullYear(d.getFullYear()-3);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  })();
+
+  // ★ attendance 전체 키 순회 - sid 포함된 출석 키만 카운트
+  // 키 형식: {sid}-{YYYY-MM}-{D} 예: st1234-2026-05-6
   const prefix=sid+'-';
-  let total=0;
+  const attPrefix='att-'+sid+'-'; // 캘린더 연동 출석 키
+  let total = 0;
   Object.keys(attendance).forEach(k=>{
+    // 일반 출석 키: {sid}-{YYYY-MM}-{day}
+    // 캘린더연동 출석 키: att-{sid}-{YYYY-MM}-{day} (이건 schedules에 있음)
     if(!k.startsWith(prefix))return;
-    const rest=k.slice(prefix.length);
+    const rest=k.slice(prefix.length); // YYYY-MM-D 또는 다른 형식
+    // YYYY로 시작하는지 확인 (날짜 형식)
     if(!/^\d{4}-/.test(rest))return;
     const lastDash=rest.lastIndexOf('-');
     if(lastDash<0)return;
-    const kym=rest.slice(0,lastDash);
+    const kym=rest.slice(0,lastDash); // YYYY-MM
     if(!/^\d{4}-\d{2}$/.test(kym))return;
     if(kym<startYm||kym>upToYm)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석')total++;
@@ -1710,7 +1676,7 @@ function renderAttendance(){
   const dim=new Date(y,m,0).getDate(); // ★ 해당 월의 실제 일수
   const allDays=Array.from({length:dim},(_,i)=>i+1);
   const sq=(document.getElementById('att-search')?.value||'').toLowerCase();
-  const rel=students.filter(s=>s.status==='active'&&(s.type==='개인'||s.type==='전화'||s.type==='출강')&&(!ft||s.teacher===ft)&&(!sq||(s.name||'').toLowerCase().includes(sq))).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
+  const rel=students.filter(s=>s.status==='active'&&(s.type==='개인'||s.type==='전화'||s.type==='출강')&&(!ft||s.teacher===ft)&&(!sq||(s.name||'').toLowerCase().includes(sq)));
   const el=document.getElementById('attendance-list');if(!el)return;
   if(!rel.length){el.innerHTML='<div class="card" style="text-align:center;color:#bbb;padding:40px">출결 관리 대상 학생이 없어요.<br><span style="font-size:12px">(개인 수업 · 전화 수업 학생만 표시돼요)</span></div>';return;}
   el.innerHTML=rel.map(s=>{
@@ -1718,21 +1684,20 @@ function renderAttendance(){
     const memoKey=`memo-${s.id}-${fm}`;
     const memoVal=attendance[memoKey]?.value||attendance[memoKey]||'';
     // ★ 누적 출석 계산 (마지막 결제완료 이후 전체 합산)
-    const lc=s.lessonCount||null;
-    // ★ 전체 누적 출석 - 사이클 반복
+    const effectiveLc=(s.lessonCount)||((s.payCycle||1)*(s.monthlyCount||0))||0;
+    const lc=effectiveLc||null;
     const totalAttForAlert=calcCumulativeAtt(s.id, fm, dim);
-    // 사이클 내 현재 위치 (lc의 배수 도달 시 lc로 표시)
-    const cycleProgress=lc?(totalAttForAlert%lc||lc):totalAttForAlert;
-    // 결제 알림: lc의 배수 도달 시
-    // 결제완료 횟수 계산
+    // ★ 결제완료 횟수 계산
     let paidCount=0;
     Object.keys(attendance).forEach(k=>{
       if(k.startsWith('paid-'+s.id+'-')&&attendance[k]?.value)paidCount++;
     });
+    // 사이클 완료 횟수 vs 결제완료 횟수 비교
     const cyclesDone=lc?Math.floor(totalAttForAlert/lc):0;
-    // 사이클 완료 횟수가 결제완료 횟수보다 많을 때만 알림
     const payAlert=lc&&cyclesDone>paidCount;
-    const payProgress=lc?`${cycleProgress}/${lc}회`:`${att}회`;
+    // 사이클 내 현재 순서
+    const cycleProgress=lc?(totalAttForAlert%lc||lc):0;
+    const payProgress=lc?`${cycleProgress}/${lc}회 (누적 ${totalAttForAlert}회)`:`${att}회`;
     const timeInfo=s.lessonTime?(s.lessonTime+(s.lessonTimeEnd?' ~ '+s.lessonTimeEnd:'')):'시간 미설정';
     const hasTime=!!(s.lessonTime&&s.lessonTimeEnd);
     return `<div class="card" style="${payAlert?'border-color:#f39c12;':''}">
@@ -1770,7 +1735,8 @@ function renderAttendance(){
           const schedKey=`att-${s.id}-${fm}-${d}`;
           const synced=a&&schedules.some(x=>x.id===schedKey);
           const isSun=dow===0,isSat=dow===6;
-          // ★ 이 날짜까지의 누적 출석 수로 사이클 위치 계산
+          // ★ 누적 사이클 내 순서 계산 (결제완료 무관)
+          // 이 날짜까지의 누적 출석 수 계산
           const attUpToToday=Object.keys(attendance).filter(k=>{
             if(!k.startsWith(s.id+'-'))return false;
             const rest=k.slice(s.id.length+1);
@@ -1784,8 +1750,9 @@ function renderAttendance(){
             if(kym===fm&&kday>d)return false;
             return attendance[k]?.value==='출석'||attendance[k]==='출석';
           }).length;
-          // lc의 배수면 사이클 마지막 → 빨간색
-          const isLastInCycle=a&&lc&&attUpToToday>0&&attUpToToday%lc===0;
+          // 사이클 내 순서 (1부터 시작)
+          const cyclePos=lc?(attUpToToday%lc||lc):0;
+          const isLastInCycle=a&&lc&&cyclePos===lc;
           const bg=a?(isLastInCycle?'#e74c3c':'#0F6E56'):'#f5f5f5';
           const col=a?'#fff':(isSun?'#c0392b':isSat?'#2980b9':'#999');
           const border=a?(isLastInCycle?'#e74c3c':'#0F6E56'):(isSun?'#fcc':isSat?'#bde':'#e0e0e0');
@@ -2379,31 +2346,30 @@ window.printAttCert=function(sid, ym){
   const dim=new Date(y,m,0).getDate();
 
   // ★ 누적 출석 날짜 수집 - attendance 전체 키 스캔
-  // ★ 메모 날짜 기준으로 시작일 결정
-  const memoDateCert=getLastMemoDate(sid);
-  let lastPaidYm3=memoDateCert?memoDateCert.ym:null;
-  let lastPaidDay3=memoDateCert?memoDateCert.day:0;
-  // 메모 없으면 결제완료 날짜 확인
-  if(!lastPaidYm3){
-    Object.keys(attendance).forEach(k=>{
-      if(!k.startsWith('paid-'+sid+'-'))return;
-      const data=attendance[k];
-      if(!(data?.value))return;
-      const paidAt=data?.paidAt||'';
+  // ★ 마지막 결제완료 이후 출석만 수집 (사이클 기준)
+  let lastPaidYm3=null;
+  let lastPaidDay3=0;
+  Object.keys(attendance).forEach(k=>{
+    if(!k.startsWith('paid-'+sid+'-'))return;
+    const data=attendance[k];
+    if(!(data?.value))return;
+    const pym=k.replace('paid-'+sid+'-','');
+    const paidAt=data?.paidAt||'';
+    if(!lastPaidYm3||pym>lastPaidYm3||(pym===lastPaidYm3&&paidAt>'')){
+      lastPaidYm3=pym;
+      // paidAt에서 날짜 추출 (형식: YYYY-MM-DD HH:MM)
       if(paidAt){
-        const paidDate=paidAt.slice(0,10);
+        const paidDate=paidAt.slice(0,10); // YYYY-MM-DD
         const paidParts=paidDate.split('-');
         if(paidParts.length===3){
-          const pym=paidParts[0]+'-'+paidParts[1];
-          const pday=parseInt(paidParts[2]);
-          if(!lastPaidYm3||pym>lastPaidYm3||(pym===lastPaidYm3&&pday>lastPaidDay3)){
-            lastPaidYm3=pym; lastPaidDay3=pday;
-          }
+          lastPaidYm3=paidParts[0]+'-'+paidParts[1];
+          lastPaidDay3=parseInt(paidParts[2]);
         }
       }
-    });
-  }
+    }
+  });
 
+  // ★ 전체 출석 수집 후 현재 선택 월 기준으로 필터
   const attDays=[];
   const prefix2=sid+'-';
   Object.keys(attendance).sort().forEach(k=>{
@@ -2415,14 +2381,8 @@ window.printAttCert=function(sid, ym){
     const kym=rest.slice(0,lastDash);
     const kday=parseInt(rest.slice(lastDash+1));
     if(!/^\d{4}-\d{2}$/.test(kym))return;
-    if(kym>ym)return;
-    // 마지막 결제완료 이후만 포함 (결제완료 없으면 현재 월만)
-    if(lastPaidYm3){
-      if(kym<lastPaidYm3)return;
-      if(kym===lastPaidYm3&&kday<=lastPaidDay3)return;
-    } else {
-      if(kym<ym)return; // 결제완료 없으면 현재 선택 월만
-    }
+    // 선택된 월만 기본 표시 (수강기간 변경 시 generateCert에서 재필터)
+    if(kym!==ym)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석'){
       attDays.push({ym:kym,day:kday});
     }
@@ -2536,6 +2496,31 @@ window.generateCert=function(sid, ym, attDays){
   if(!s) return;
   const [y,m]=ym.split('-').map(Number);
 
+  // ★ 수강기간(pStart~pEnd) 기준으로 attDays 필터
+  const pStartRaw=document.getElementById('cert-period-start')?.value||'';
+  const pEndRaw=document.getElementById('cert-period-end')?.value||'';
+  function parseDate(str){
+    // 2026.05.01. 또는 2026.05.01 형식
+    const cleaned=str.replace(/\.$/,'').replace(/\./g,'-');
+    const parts=cleaned.split('-');
+    if(parts.length>=3)return{ym:parts[0]+'-'+parts[1].padStart(2,'0'),day:parseInt(parts[2])};
+    return null;
+  }
+  const startDate=parseDate(pStartRaw);
+  const endDate=parseDate(pEndRaw);
+  if(startDate||endDate){
+    attDays=attDays.filter(item=>{
+      if(startDate){
+        if(item.ym<startDate.ym)return false;
+        if(item.ym===startDate.ym&&item.day<startDate.day)return false;
+      }
+      if(endDate){
+        if(item.ym>endDate.ym)return false;
+        if(item.ym===endDate.ym&&item.day>endDate.day)return false;
+      }
+      return true;
+    });
+  }
   // attDays가 {ym,day} 객체 배열
   const total=attDays.length;
 
