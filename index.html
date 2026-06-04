@@ -2381,13 +2381,18 @@ window.printAttCert=function(sid, ym){
     const kym=rest.slice(0,lastDash);
     const kday=parseInt(rest.slice(lastDash+1));
     if(!/^\d{4}-\d{2}$/.test(kym))return;
-    // 선택된 월만 기본 표시 (수강기간 변경 시 generateCert에서 재필터)
-    if(kym!==ym)return;
+    // 최근 6개월치 범위로 수집 (generateCert에서 pStart~pEnd로 재필터)
+    const [cy2,cm2]=ym.split('-').map(Number);
+    const minDate=new Date(cy2,cm2-1-6,1);
+    const minYm=minDate.getFullYear()+'-'+String(minDate.getMonth()+1).padStart(2,'0');
+    if(kym<minYm||kym>ym)return;
     if(attendance[k]?.value==='출석'||attendance[k]==='출석'){
       attDays.push({ym:kym,day:kday});
     }
   });
   attDays.sort((a,b)=>a.ym!==b.ym?a.ym.localeCompare(b.ym):a.day-b.day);
+
+
 
   let defaultMin='';
   if(s.lessonTime&&s.lessonTimeEnd){
@@ -2402,17 +2407,43 @@ window.printAttCert=function(sid, ym){
   const today=new Date();
   const todayStr=today.getFullYear()+'년 '+(today.getMonth()+1)+'월 '+today.getDate()+'일';
 
-  const dateRows=attDays.map((item,i)=>{
-    const [iy,im]=item.ym.split('-').map(Number);
-    const d=item.day;
-    return `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px" id="cert-row-${i}">
-      <button onclick="this.closest('[id^=cert-row]').remove();window._certAttDays=window._certAttDays.filter(x=>!(x.ym==='${item.ym}'&&x.day===${item.day}))" style="width:22px;height:22px;border:none;background:#fde8e8;color:#c0392b;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0">×</button>
-      <span style="width:50px;font-size:13px;font-weight:600;color:#0F6E56">${im}/${d}</span>
-      <input type="text" id="cert-min-${i}" value="${defaultMin||'20분'}"
-        style="width:72px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
-      <span style="font-size:11px;color:#888">수업시간</span>
-    </div>`;}).join('');
+  // ★ 전체 출석 목록 + 분 값을 날짜 키로 저장 (인덱스 의존 제거)
+  window._certAllDays=attDays.map(x=>({ym:x.ym,day:x.day,min:defaultMin||'20분',deleted:false}));
+
+  // ★ 날짜 목록 렌더 함수 (수강기간 변경 시 재호출)
+  window._certRenderRows=function(){
+    function parseCertDate(str){
+      const cleaned=str.replace(/\.$/,'').replace(/\./g,'-');
+      const parts=cleaned.split('-');
+      if(parts.length>=3)return{ym:parts[0]+'-'+parts[1].padStart(2,'0'),day:parseInt(parts[2])};
+      return null;
+    }
+    const pS=parseCertDate(document.getElementById('cert-period-start')?.value||'');
+    const pE=parseCertDate(document.getElementById('cert-period-end')?.value||'');
+    const visible=window._certAllDays.filter(item=>{
+      if(item.deleted)return false;
+      if(pS){if(item.ym<pS.ym||(item.ym===pS.ym&&item.day<pS.day))return false;}
+      if(pE){if(item.ym>pE.ym||(item.ym===pE.ym&&item.day>pE.day))return false;}
+      return true;
+    });
+    const container=document.getElementById('cert-rows-wrap');
+    const label=document.getElementById('cert-rows-label');
+    if(!container)return;
+    if(label)label.textContent='날짜별 수업 시간 ('+visible.length+'회)';
+    if(!visible.length){container.innerHTML='<div style="color:#aaa;font-size:13px;padding:8px 0">출석 기록이 없어요</div>';return;}
+    container.innerHTML=visible.map(item=>{
+      const [iy,im]=item.ym.split('-').map(Number);
+      const key=item.ym+'-'+item.day;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px" id="cert-row-${key}">
+        <button onclick="window._certAllDays.find(x=>x.ym==='${item.ym}'&&x.day===${item.day}).deleted=true;document.getElementById('cert-row-${key}').remove();window._certRenderRows()" style="width:22px;height:22px;border:none;background:#fde8e8;color:#c0392b;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0">×</button>
+        <span style="width:50px;font-size:13px;font-weight:600;color:#0F6E56">${im}/${item.day}</span>
+        <input type="text" id="cert-min-${key}" value="${item.min}"
+          onchange="window._certAllDays.find(x=>x.ym==='${item.ym}'&&x.day===${item.day}).min=this.value"
+          style="width:72px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+        <span style="font-size:11px;color:#888">수업시간</span>
+      </div>`;
+    }).join('');
+  };
 
   const modal=document.createElement('div');
   modal.id='cert-modal';
@@ -2434,10 +2465,12 @@ window.printAttCert=function(sid, ym){
     <div style="margin-bottom:12px">
       <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:3px">수강기간</label>
       <div style="display:flex;align-items:center;gap:6px">
-        <input type="text" id="cert-period-start" value="${y}.${String(m).padStart(2,'0')}.01."
+        <input type="text" id="cert-period-start" value="${(()=>{if(s.start&&/\d{4}-\d{2}-\d{2}/.test(s.start)){const[sy,sm2,sd]=s.start.split('-');return sy+'.'+sm2+'.'+sd+'.';}return y+'.'+String(m).padStart(2,'0')+'.01.';})()}"
+          oninput="window._certRenderRows()"
           style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
         <span>~</span>
-        <input type="text" id="cert-period-end" value="${y}.${String(m).padStart(2,'0')}.${String(dim).padStart(2,'0')}"
+        <input type="text" id="cert-period-end" value="${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')}"
+          oninput="window._certRenderRows()"
           style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:13px">
       </div>
     </div>
@@ -2467,61 +2500,55 @@ window.printAttCert=function(sid, ym){
 
     <div style="margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <label style="font-size:11px;font-weight:600;color:#666">날짜별 수업 시간 (${attDays.length}회)</label>
+        <label id="cert-rows-label" style="font-size:11px;font-weight:600;color:#666">날짜별 수업 시간</label>
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" id="cert-min-all" value="${defaultMin||'20분'}"
             style="width:65px;padding:3px 7px;border:1px solid #ddd;border-radius:6px;font-size:12px">
-          <button onclick="document.querySelectorAll('[id^=cert-min-]').forEach(el=>el.value=document.getElementById('cert-min-all').value)"
+          <button onclick="const v=document.getElementById('cert-min-all').value;window._certAllDays.forEach(x=>{if(!x.deleted)x.min=v});window._certRenderRows()"
             style="font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5">일괄적용</button>
         </div>
       </div>
-      <div style="max-height:180px;overflow-y:auto;padding-right:4px">
-        ${attDays.length?dateRows:'<div style="color:#aaa;font-size:13px;padding:8px 0">출석 기록이 없어요</div>'}
-      </div>
+      <div id="cert-rows-wrap" style="max-height:180px;overflow-y:auto;padding-right:4px"></div>
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="document.getElementById('cert-modal').remove()"
         style="padding:8px 18px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:#f5f5f5">취소</button>
-      <button onclick="window.generateCert('${sid}','${ym}',window._certAttDays)"
+      <button onclick="window.generateCert('${sid}','${ym}')"
         style="padding:8px 20px;border:none;border-radius:8px;cursor:pointer;background:#0F6E56;color:#fff;font-weight:600">출력하기 →</button>
     </div>
   </div>`;
-  window._certAttDays=attDays.map(x=>({ym:x.ym,day:x.day}));
   document.body.appendChild(modal);
+  // 모달 렌더 후 날짜 목록 초기 표시
+  setTimeout(()=>window._certRenderRows(),0);
 };
 
-window.generateCert=function(sid, ym, attDays){
+window.generateCert=function(sid, ym){
   const s=students.find(x=>x.id===sid);
   if(!s) return;
   const [y,m]=ym.split('-').map(Number);
 
-  // ★ 수강기간(pStart~pEnd) 기준으로 attDays 필터
-  const pStartRaw=document.getElementById('cert-period-start')?.value||'';
-  const pEndRaw=document.getElementById('cert-period-end')?.value||'';
-  function parseDate(str){
-    // 2026.05.01. 또는 2026.05.01 형식
-    const cleaned=str.replace(/\.$/,'').replace(/\./g,'-');
+  // ★ _certAllDays에서 현재 수강기간 기준으로 필터
+  function parseCertDate(str){
+    const cleaned=(str||'').replace(/\.$/,'').replace(/\./g,'-');
     const parts=cleaned.split('-');
     if(parts.length>=3)return{ym:parts[0]+'-'+parts[1].padStart(2,'0'),day:parseInt(parts[2])};
     return null;
   }
-  const startDate=parseDate(pStartRaw);
-  const endDate=parseDate(pEndRaw);
-  if(startDate||endDate){
-    attDays=attDays.filter(item=>{
-      if(startDate){
-        if(item.ym<startDate.ym)return false;
-        if(item.ym===startDate.ym&&item.day<startDate.day)return false;
-      }
-      if(endDate){
-        if(item.ym>endDate.ym)return false;
-        if(item.ym===endDate.ym&&item.day>endDate.day)return false;
-      }
-      return true;
-    });
-  }
-  // attDays가 {ym,day} 객체 배열
+  const pStartRaw=document.getElementById('cert-period-start')?.value||'';
+  const pEndRaw=document.getElementById('cert-period-end')?.value||'';
+  const startDate=parseCertDate(pStartRaw);
+  const endDate=parseCertDate(pEndRaw);
+
+  let attDays=(window._certAllDays||[]).filter(item=>{
+    if(item.deleted)return false;
+    if(startDate){if(item.ym<startDate.ym||(item.ym===startDate.ym&&item.day<startDate.day))return false;}
+    if(endDate){if(item.ym>endDate.ym||(item.ym===endDate.ym&&item.day>endDate.day))return false;}
+    return true;
+  });
+
+  // mins는 _certAllDays의 min 필드에서 직접 읽기 (인덱스 의존 없음)
+  const mins=attDays.map(item=>item.min||'20분');
   const total=attDays.length;
 
   const name=document.getElementById('cert-name').value;
@@ -2534,11 +2561,6 @@ window.generateCert=function(sid, ym, attDays){
   const weekly=document.getElementById('cert-weekly').value;
   const periodLabel=document.getElementById('cert-period-label').value;
   const issueDate=document.getElementById('cert-issue-date').value;
-
-  const mins=attDays.map((_,i)=>{
-    const el=document.getElementById('cert-min-'+i);
-    return el?el.value:'20분';
-  });
 
   // 날짜 표시 (월이 다른 경우 월/일 형식)
   function fmtItem(item){
