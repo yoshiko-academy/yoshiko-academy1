@@ -172,6 +172,7 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
     <button class="nav-btn" onclick="showPage('salary',this)">💴 급여 정산</button>
     <button class="nav-btn" onclick="showPage('classes',this)">🏫 반 관리</button>
     <button class="nav-btn" onclick="showPage('settings',this)">👩‍🏫 선생님 관리</button>
+    <button class="nav-btn" onclick="showPage('nito',this)">🏢 니토출강</button>
   </div>
   <div class="sync"><div class="sync-dot" id="sync-dot"></div><span id="sync-txt">연결 중...</span></div>
   <button onclick="window.showDeployGuide()" style="background:none;border:none;cursor:pointer;font-size:12px;color:#888;padding:4px 8px;border-radius:6px;hover:background:#f0f0f0" title="폰에서 열기">📱 폰에서 열기</button>
@@ -296,6 +297,17 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 3px 
       <button class="btn primary" onclick="addTeacher()">+ 선생님 추가</button>
     </div>
   </div>
+</div>
+
+<div id="page-nito" class="page">
+  <div class="toolbar">
+    <select id="nito-class" onchange="renderNito()"></select>
+    <input type="month" id="nito-month" onchange="renderNito()">
+    <button class="btn sm" onclick="window.copyNitoTeacherLink()" style="background:#e8f4fd;border-color:#90caf9;color:#1565c0;white-space:nowrap">🔗 선생님 전용 링크</button>
+    <button class="btn sm" onclick="window.downloadNitoAll()" style="background:#fff3e0;border-color:#ffb74d;color:#e65100;white-space:nowrap">📥 전체 다운로드(전체 기간)</button>
+  </div>
+  <div class="card" style="background:#e8f4fd;border-color:#90caf9;margin-bottom:4px"><div style="font-size:12px;color:#1565c0" id="nito-method-note">ℹ 한국니토옵티칼 출강 수업 전용 출석부·평가서예요. 셀을 입력하면 자동 저장돼요.</div></div>
+  <div id="nito-content"></div>
 </div>
 </div>
 
@@ -600,6 +612,27 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let students=[], schedules=[], teachers=[], attendance={}, classes=[];
+let nitoAtt={}, nitoAttDates={}, nitoEval={}, nitoRoster={};
+const NITO_CLASSES=[
+  {id:'ib', name:'입문반', teacher:'전다정',
+    students:['남주현','왕상래','주지은','유도현'],
+    items:[{key:'gram',label:'문법 정확도'},{key:'voc',label:'어휘 활용도'}], mult:4,
+    method:'항목별 1~5점(필기시험 정답률 기반) × 4 = 각 20점, 합 40점'},
+  {id:'cb', name:'초급회화반', teacher:'김연옥',
+    students:['김나은','박성민B','강민영','박정욱','이수영'],
+    items:[{key:'speak',label:'발화 적극성'},{key:'listen',label:'청해 이해도'},{key:'gram',label:'문법 정확도'},{key:'voc',label:'어휘 활용도'}], mult:2,
+    method:'Rubric 평가(1~5점) + 월말 시험 + 수업 중 관찰 — 항목별 × 2 = 각 10점, 합 40점'},
+  {id:'jb', name:'중급회화반', teacher:'이유희',
+    students:['박정호B','임정호','안기호','신민주','조현묵'],
+    items:[{key:'situation',label:'상황 설명'},{key:'opinion',label:'의견 표현'},{key:'gram',label:'문법 정확도'},{key:'voc',label:'어휘 활용도'}], mult:2,
+    method:'작문 시험 기반 Rubric 평가(1~5점) — 발화·청해 제외 — 항목별 × 2 = 각 10점, 합 40점'},
+  {id:'en', name:'영어반', teacher:'송인선',
+    students:['박재형','엄준호','임화섭'],
+    items:[{key:'speak',label:'발화 적극성(Speaking)'},{key:'listen',label:'청해 이해도(Listening)'},{key:'gram',label:'문법 정확도(Grammar)'},{key:'voc',label:'어휘 활용도(Vocabulary)'}], mult:2,
+    method:'Rubric 평가(1~5점) + 작문 — 항목별 × 2 = 각 10점, 합 40점'},
+];
+function nitoKey(s){return String(s).trim();}
+function nitoGrade(total){if(total==null||total==='')return'';if(total>=90)return'A';if(total>=80)return'B';if(total>=70)return'C';return'D';}
 let editingStudentId=null, editingClassId=null, editingScheduleId=null;
 let pendingDelId=null, pendingEditData=null;
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), selectedDate=null;
@@ -627,6 +660,10 @@ onSnapshot(collection(db,'classes'),snap=>{
   classes=snap.docs.map(d=>({...d.data(),id:d.id}));
   populateClassSelects();refreshAll();setSynced(true);
 });
+onSnapshot(collection(db,'nitoAtt'),snap=>{nitoAtt={};snap.docs.forEach(d=>{nitoAtt[d.id]=d.data();});refreshAll();setSynced(true);});
+onSnapshot(collection(db,'nitoAttDates'),snap=>{nitoAttDates={};snap.docs.forEach(d=>{nitoAttDates[d.id]=d.data();});refreshAll();setSynced(true);});
+onSnapshot(collection(db,'nitoEval'),snap=>{nitoEval={};snap.docs.forEach(d=>{nitoEval[d.id]=d.data();});refreshAll();setSynced(true);});
+onSnapshot(collection(db,'nitoRoster'),snap=>{nitoRoster={};snap.docs.forEach(d=>{nitoRoster[d.id]=d.data();});refreshAll();setSynced(true);});
 
 async function initDefaultTeachers(){
   const defaults=[{name:'이니 선생님',rates:{학원:25000,전화:20000,출강:35000,개인:30000}},{name:'요시꼬 선생님',rates:{학원:30000,전화:28000,출강:40000,개인:35000}}];
@@ -644,6 +681,7 @@ function refreshAll(){
   if(id==='salary')renderSalary();
   if(id==='settings')renderSettings();
   if(id==='classes')renderClasses();
+  if(id==='nito')renderNito();
 }
 async function saveDoc(col,id,data){await setDoc(doc(db,col,id),data);}
 async function delDoc(col,id){await deleteDoc(doc(db,col,id));}
@@ -2792,6 +2830,249 @@ document.getElementById('att-month').value=YYYYMM;
 document.getElementById('sal-month').value=YYYYMM;
 document.getElementById('ph-month').value=YYYYMM;
 
+// ══════════════ 니토옵티칼 출강 출석부·평가서 ══════════════
+(function(){
+  function fillNitoClassSelect(){
+    const sel=document.getElementById('nito-class');if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML=NITO_CLASSES.map(c=>`<option value="${c.id}">${c.name} (${c.teacher})</option>`).join('');
+    if(cur)sel.value=cur;
+  }
+  fillNitoClassSelect();
+  const mEl=document.getElementById('nito-month');if(mEl&&!mEl.value)mEl.value=YYYYMM;
+
+  function curClass(){
+    const id=document.getElementById('nito-class')?.value||NITO_CLASSES[0].id;
+    return NITO_CLASSES.find(c=>c.id===id)||NITO_CLASSES[0];
+  }
+  function curMonth(){return document.getElementById('nito-month')?.value||YYYYMM;}
+  function getStudents(cls){return (nitoRoster[cls.id]&&Array.isArray(nitoRoster[cls.id].students)&&nitoRoster[cls.id].students.length)?nitoRoster[cls.id].students:cls.students;}
+  window.addNitoStudent=async function(){
+    const cls=curClass();
+    const name=prompt(`${cls.name}에 추가할 학생 이름을 입력하세요`);
+    if(!name||!name.trim())return;
+    const list=[...getStudents(cls)];
+    if(list.includes(name.trim())){alert('이미 등록된 학생이에요.');return;}
+    list.push(name.trim());
+    await saveDoc('nitoRoster',cls.id,{students:list});
+    toast('학생이 추가됐어요');
+  };
+  window.removeNitoStudent=async function(name){
+    const cls=curClass();
+    if(!confirm(`${name} 학생을 ${cls.name} 명단에서 삭제할까요? (기존 출석·평가 기록은 남아있어요)`))return;
+    const list=getStudents(cls).filter(s=>s!==name);
+    await saveDoc('nitoRoster',cls.id,{students:list});
+  };
+  function prevMonthStr(ym){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+
+  function getDates(clsId,ym){const doc=nitoAttDates[`${clsId}_${ym}`];return (doc&&doc.dates)?[...doc.dates].sort():[];}
+  function getAttVal(clsId,student,date){const v=nitoAtt[`${clsId}-${nitoKey(student)}-${date}`];return v?.value||'';}
+  window.setNitoAtt=async function(clsId,student,date,val){
+    const key=`${clsId}-${nitoKey(student)}-${date}`;
+    if(val.trim())await saveDoc('nitoAtt',key,{value:val.trim()});else await delDoc('nitoAtt',key);
+  };
+  window.addNitoDate=async function(){
+    const cls=curClass(),ym=curMonth();
+    const d=prompt('추가할 수업 날짜 (YYYY-MM-DD)',`${ym}-01`);
+    if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d)){if(d)alert('날짜 형식이 올바르지 않아요. 예: 2026-08-03');return;}
+    const key=`${cls.id}_${ym}`;
+    const dates=new Set(getDates(cls.id,ym));dates.add(d);
+    await saveDoc('nitoAttDates',key,{dates:[...dates].sort()});
+    toast('날짜가 추가됐어요');
+  };
+  window.removeNitoDate=async function(date){
+    const cls=curClass(),ym=curMonth();
+    if(!confirm(`${date} 열을 삭제할까요? 해당 날짜의 출석 기록도 함께 지워져요.`))return;
+    const key=`${cls.id}_${ym}`;
+    const dates=getDates(cls.id,ym).filter(x=>x!==date);
+    await saveDoc('nitoAttDates',key,{dates});
+    for(const s of getStudents(cls))await delDoc('nitoAtt',`${cls.id}-${nitoKey(s)}-${date}`);
+  };
+
+  function getEval(clsId,student,ym){return nitoEval[`${clsId}-${nitoKey(student)}-${ym}`]||{};}
+  window.setNitoEval=async function(clsId,student,ym,field,val){
+    const key=`${clsId}-${nitoKey(student)}-${ym}`;
+    const cur={...getEval(clsId,student,ym)};
+    if(field.startsWith('item:')){
+      const ik=field.split(':')[1];
+      cur.items={...(cur.items||{})};
+      cur.items[ik]=(val===''?null:Number(val));
+    }else if(field==='participation'||field==='homework'){
+      cur[field]=(val===''?null:Number(val));
+    }else{
+      cur[field]=val;
+    }
+    await saveDoc('nitoEval',key,cur);
+  };
+
+  function calcAttScore(clsId,student,ym){
+    const dates=getDates(clsId,ym);
+    let o=0,x=0,biz=0;const bizList=[];
+    dates.forEach(d=>{
+      const v=getAttVal(clsId,student,d);
+      if(!v)return;
+      if(v==='O')o++;else if(v==='X')x++;else{biz++;bizList.push(v);}
+    });
+    const denom=o+x;
+    const score=denom>0?Math.round((o/denom*20)*10)/10:null;
+    let note='결석 없음';
+    const parts=[];
+    if(x>0)parts.push(`개인결석 ${x}회`);
+    if(biz>0)parts.push(`업무상사유 ${biz}회(${bizList.join(',')})`);
+    if(parts.length)note=parts.join(' ');
+    return {score,note};
+  }
+
+  function calcRow(cls,student,ym){
+    const att=calcAttScore(cls.id,student,ym);
+    const ev=getEval(cls.id,student,ym);
+    const items=ev.items||{};
+    const vals=cls.items.map(it=>items[it.key]);
+    const allSet=vals.every(v=>v!=null&&v!=='');
+    const monthEval=allSet?vals.reduce((a,b)=>a+Number(b)*cls.mult,0):null;
+    const part=(ev.participation!=null&&ev.participation!=='')?Number(ev.participation):null;
+    const hw=(ev.homework!=null&&ev.homework!=='')?Number(ev.homework):null;
+    const canTotal=att.score!=null&&part!=null&&hw!=null&&monthEval!=null;
+    const total=canTotal?Math.round((att.score+part+hw+monthEval)*10)/10:null;
+    const grade=canTotal?nitoGrade(total):'';
+    return {att,ev,items,monthEval,part,hw,total,grade};
+  }
+
+  function calcPrevGrade(cls,student,ym){
+    const pym=prevMonthStr(ym);
+    const r=calcRow(cls,student,pym);
+    return {grade:r.grade,total:r.total};
+  }
+
+  window.renderNito=function(){
+    fillNitoClassSelect();
+    const cls=curClass(),ym=curMonth();
+    const noteEl=document.getElementById('nito-method-note');
+    if(noteEl)noteEl.textContent=`ℹ ${cls.name}(${cls.teacher}) — 평가 방식: ${cls.method}`;
+    const dates=getDates(cls.id,ym);
+
+    // 출석부 테이블
+    let attHtml=`<div class="card" style="overflow:auto;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700">📅 ${cls.name} 출석부 — ${ym}</div>
+        <button class="btn sm primary" onclick="window.addNitoDate()">+ 날짜 추가</button>
+        <button class="btn sm" onclick="window.addNitoStudent()" style="background:#f0fdf8;border-color:#81c995;color:#085041">+ 학생 추가</button>
+      </div>
+      <table><thead><tr><th style="width:40px">NO</th><th style="width:90px">이름</th>`;
+    dates.forEach(d=>{attHtml+=`<th style="min-width:60px;cursor:pointer" title="클릭하면 열 삭제" onclick="window.removeNitoDate('${d}')">${d.slice(5)}✕</th>`;});
+    attHtml+=`</tr></thead><tbody>`;
+    getStudents(cls).forEach((s,i)=>{
+      attHtml+=`<tr><td>${i+1}</td><td style="cursor:pointer" title="클릭하면 명단에서 삭제" onclick="window.removeNitoStudent('${s.replace(/'/g,"\\'")}')">${s} ✕</td>`;
+      dates.forEach(d=>{
+        const v=getAttVal(cls.id,s,d);
+        attHtml+=`<td><input type="text" value="${v}" placeholder="O/X/사유" style="width:64px;padding:4px 6px;font-size:12px;text-align:center" onchange="window.setNitoAtt('${cls.id}','${s.replace(/'/g,"\\'")}','${d}',this.value)"></td>`;
+      });
+      attHtml+=`</tr>`;
+    });
+    if(dates.length===0)attHtml+=`<tr><td colspan="2" style="color:#999">아직 등록된 날짜가 없어요. "+ 날짜 추가"로 이번 달 수업일을 등록해 주세요.</td></tr>`;
+    attHtml+=`</tbody></table></div>`;
+
+    // 평가서 테이블
+    const itemHeaders=cls.items.map(it=>`<th style="min-width:70px">${it.label}<br><span style="font-weight:400;color:#888">(1~5점)</span></th>`).join('');
+    let evalHtml=`<div class="card" style="overflow:auto">
+      <div style="font-weight:700;margin-bottom:8px">📝 ${cls.name} 평가서 — ${ym}</div>
+      <table><thead><tr>
+        <th>이름</th><th style="width:70px">출석점수<br>(20점)</th><th style="min-width:120px">출결비고</th>
+        <th style="width:64px">참여도<br>(20)</th><th style="width:64px">과제<br>(20)</th>
+        ${itemHeaders}
+        <th style="width:70px">월말평가<br>(40)</th><th style="width:64px">종합점수</th><th style="width:44px">등급</th>
+        <th style="width:44px">전월<br>등급</th><th style="width:56px">성장</th>
+        <th style="min-width:160px">강사 코멘트</th><th style="min-width:160px">담당자 피드백</th>
+      </tr></thead><tbody>`;
+    getStudents(cls).forEach(s=>{
+      const r=calcRow(cls,s,ym);
+      const prev=calcPrevGrade(cls,s,ym);
+      const growth=(r.total!=null&&prev.total!=null)?Math.round((r.total-prev.total)*10)/10:null;
+      evalHtml+=`<tr>
+        <td style="font-weight:600">${s}</td>
+        <td style="text-align:center;background:#f5f5f5">${r.att.score!=null?r.att.score:'-'}</td>
+        <td style="font-size:11px;color:#666">${r.att.note}</td>
+        <td><input type="number" min="0" max="20" value="${r.part!=null?r.part:''}" style="width:52px;padding:4px" onchange="window.setNitoEval('${cls.id}','${s.replace(/'/g,"\\'")}','${ym}','participation',this.value)"></td>
+        <td><input type="number" min="0" max="20" value="${r.hw!=null?r.hw:''}" style="width:52px;padding:4px" onchange="window.setNitoEval('${cls.id}','${s.replace(/'/g,"\\'")}','${ym}','homework',this.value)"></td>
+        ${cls.items.map(it=>`<td><input type="number" min="1" max="5" value="${r.items[it.key]!=null?r.items[it.key]:''}" style="width:48px;padding:4px" onchange="window.setNitoEval('${cls.id}','${s.replace(/'/g,"\\'")}','${ym}','item:${it.key}',this.value)"></td>`).join('')}
+        <td style="text-align:center;background:#f5f5f5">${r.monthEval!=null?r.monthEval:'-'}</td>
+        <td style="text-align:center;font-weight:700;background:#eef7ff">${r.total!=null?r.total:'-'}</td>
+        <td style="text-align:center;font-weight:700">${r.grade||'-'}</td>
+        <td style="text-align:center;color:#888">${prev.grade||'-'}</td>
+        <td style="text-align:center;color:${growth>0?'#1b8a3a':growth<0?'#c0392b':'#888'}">${growth!=null?(growth>0?'+':'')+growth:'-'}</td>
+        <td><textarea rows="2" style="width:100%;font-size:12px;padding:4px" onchange="window.setNitoEval('${cls.id}','${s.replace(/'/g,"\\'")}','${ym}','teacherComment',this.value)">${r.ev.teacherComment||''}</textarea></td>
+        <td><textarea rows="2" style="width:100%;font-size:12px;padding:4px" onchange="window.setNitoEval('${cls.id}','${s.replace(/'/g,"\\'")}','${ym}','staffComment',this.value)">${r.ev.staffComment||''}</textarea></td>
+      </tr>`;
+    });
+    evalHtml+=`</tbody></table></div>`;
+
+    document.getElementById('nito-content').innerHTML=attHtml+evalHtml;
+  };
+
+  window.copyNitoTeacherLink=function(){
+    const cls=curClass();
+    const base=location.origin+location.pathname;
+    const url=`${base}?mode=teacher&teacher=${encodeURIComponent(cls.teacher)}`;
+    navigator.clipboard?.writeText(url);
+    toast('링크가 복사됐어요: '+cls.teacher+' 선생님용');
+  };
+
+  function loadSheetJS(cb){
+    if(window.XLSX){cb();return;}
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=cb;document.head.appendChild(s);
+  }
+
+  window.downloadNitoAll=function(){
+    loadSheetJS(function(){
+      // 데이터가 존재하는 모든 월(yyyy-mm) 수집
+      const months=new Set();
+      Object.keys(nitoAttDates).forEach(k=>{const m=k.split('_')[1];if(m)months.add(m);});
+      Object.keys(nitoEval).forEach(k=>{const m=k.split('-').pop();if(m&&/^\d{4}-\d{2}$/.test(m))months.add(m);});
+      if(months.size===0){alert('아직 저장된 기록이 없어요.');return;}
+      const sortedMonths=[...months].sort();
+      const wb=XLSX.utils.book_new();
+      sortedMonths.forEach(ym=>{
+        const label=`${Number(ym.slice(5,7))}월`;
+        // 출석부 시트
+        const attRows=[[`한국니토옵티칼 ${ym.slice(0,4)}년 ${label} 출강 출석부`]];
+        NITO_CLASSES.forEach(cls=>{
+          const dates=getDates(cls.id,ym);
+          attRows.push([`■ ${cls.name} (${cls.teacher})`]);
+          attRows.push(['NO','이름',...dates]);
+          getStudents(cls).forEach((s,i)=>{
+            attRows.push([i+1,s,...dates.map(d=>getAttVal(cls.id,s,d))]);
+          });
+          attRows.push([]);
+        });
+        const attWs=XLSX.utils.aoa_to_sheet(attRows);
+        XLSX.utils.book_append_sheet(wb,attWs,`${label} 출석부`);
+
+        // 평가서 시트
+        const evalRows=[[`한국니토옵티칼 ${ym.slice(0,4)}년 ${label} 출강 평가서`]];
+        NITO_CLASSES.forEach(cls=>{
+          evalRows.push([`■ ${cls.name} (${cls.teacher}) — ${cls.method}`]);
+          evalRows.push(['이름','출석점수(20)','출결비고','참여도(20)','과제(20)',
+            ...cls.items.map(it=>it.label+'(1~5)'),'월말평가(40)','종합점수(100)','등급','전월등급','성장','강사코멘트','담당자피드백']);
+          getStudents(cls).forEach(s=>{
+            const r=calcRow(cls,s,ym);
+            const prev=calcPrevGrade(cls,s,ym);
+            const growth=(r.total!=null&&prev.total!=null)?Math.round((r.total-prev.total)*10)/10:null;
+            evalRows.push([s,r.att.score,r.att.note,r.part,r.hw,
+              ...cls.items.map(it=>r.items[it.key]!=null?r.items[it.key]:''),
+              r.monthEval,r.total,r.grade,prev.grade,growth,r.ev.teacherComment||'',r.ev.staffComment||'']);
+          });
+          evalRows.push([]);
+        });
+        const evalWs=XLSX.utils.aoa_to_sheet(evalRows);
+        XLSX.utils.book_append_sheet(wb,evalWs,`${label} 평가서`);
+      });
+      XLSX.writeFile(wb,`니토옵티칼_출강_전체기록_${sortedMonths[0]}~${sortedMonths[sortedMonths.length-1]}.xlsx`);
+    });
+  };
+})();
+
 // ── 선생님 전용 출결 모드 ──
 (function(){
   const params=new URLSearchParams(location.search);
@@ -2808,6 +3089,31 @@ document.getElementById('ph-month').value=YYYYMM;
 
     // 모든 페이지 숨기기
     document.querySelectorAll('.page').forEach(p=>{p.style.display='none';p.classList.remove('active');});
+
+    const nitoCls=(typeof NITO_CLASSES!=='undefined')?NITO_CLASSES.find(c=>c.teacher===teacherParam):null;
+
+    if(nitoCls){
+      // ★ 니토옵티칼 출강 강사 전용 화면 (출석부·평가서만)
+      const header=document.createElement('div');
+      header.innerHTML=`
+        <div style="background:#0F6E56;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:15px;font-weight:700">요시꼬 어학원 · 한국니토옵티칼 출강</span>
+          <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:13px">${teacherParam} 선생님 · ${nitoCls.name}</span>
+        </div>`;
+      document.body.insertBefore(header,document.body.firstChild);
+      const pg=document.getElementById('page-nito');
+      if(pg){pg.style.display='block';pg.classList.add('active');}
+      setTimeout(function(){
+        const sel=document.getElementById('nito-class');
+        if(sel){sel.value=nitoCls.id;sel.style.display='none';}
+        const linkBtn=document.querySelector('#page-nito button[onclick="window.copyNitoTeacherLink()"]');
+        if(linkBtn)linkBtn.style.display='none';
+        const dlBtn=document.querySelector('#page-nito button[onclick="window.downloadNitoAll()"]');
+        if(dlBtn)dlBtn.style.display='none';
+        if(window.renderNito)window.renderNito();
+      },800);
+      return;
+    }
 
     // ★ 선생님 전용 헤더 + 탭 네비 추가
     const header=document.createElement('div');
